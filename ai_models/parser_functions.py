@@ -4,6 +4,8 @@ import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict
 from sentence_transformers import SentenceTransformer, util
+from gigachat import GigaChat
+import torch
 
 SPACE_CHARS = ["\u00a0", "\u202f", "\u2009", "\u2002", "\u2003", "\u2004", "\u2005", "\u3000", "\ufeff",
                 "\xa0"]
@@ -197,22 +199,33 @@ class ContractParser:
         
         return [item for sublist in tables_lines for item in sublist]
 
-def find_similar_k(plan_points: List[str], contract_chunks: List[str], use_vectorization: bool) -> Dict[str, List[str]]:
+
+def find_similar_k(plan_points: List[str], contract_chunks: List[str], use_vectorization=True) -> Dict[str, List[str]]:
     if  use_vectorization:
-            model = SentenceTransformer("sberbank-ai/sbert_large_nlu_ru")
 
-            reference_embeddings = model.encode(plan_points, convert_to_tensor=True)
-            document_embeddings = model.encode(contract_chunks, convert_to_tensor=True)
+            AUTH_KEY  = "MDE5YTYzYWMtOTI1OS03MjgzLTgxODctNzhlYjIzMGI4MGIzOmVlOTY5ZGM4LWY1ODUtNGNjNC1hODA3LWNjMGU4N2U1ZmMyZA=="
 
+            giga = GigaChat(credentials=AUTH_KEY, verify_ssl_certs=False)
+
+            plan_response = giga.embeddings(texts=plan_points, model="Embeddings")
+            contract_response = giga.embeddings(texts=contract_chunks, model="Embeddings")
+
+            plan_embeddings = [item.embedding for item in plan_response.data]
+            contract_embeddings = [item.embedding for item in contract_response.data]
+
+            # в тензор
+            plan_embeddings = torch.tensor(plan_embeddings)
+            contract_embeddings = torch.tensor(contract_embeddings)
             top_k = 15
-            closest_k = defaultdict(list) # {Пункт плана: k ближайших чанков из контракта}
-            # Поиск ближайших по смыслу чанков 
-            for i, ref_emb in enumerate(reference_embeddings):
-                cos_scores = util.cos_sim(ref_emb, document_embeddings)[0]
-                top_results = cos_scores.topk(k=top_k)
+            closest_k = defaultdict(list)
 
+            for i, plan_emb in enumerate(plan_embeddings):
+                cos_scores = util.cos_sim(plan_emb, contract_embeddings)[0]
+                top_results = cos_scores.topk(k=top_k)
+                
                 for idx in top_results.indices:
                     closest_k[plan_points[i]].append(contract_chunks[idx])
     else:
         pass
+
     return closest_k

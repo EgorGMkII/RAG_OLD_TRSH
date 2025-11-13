@@ -38,12 +38,15 @@ class AIService:
         parser_plan = PlanParser(doc1_path)
         plan_points = parser_plan.extract_table_kv_from_docx()
 
+        print("Plan at:", doc1_path)
+        print("Contract at:", doc2_path)
+
         closest_k = find_similar_k(plan_points, contract_chunks, use_vectorization=True)
         if not closest_k:
             return {'ai_response': "Не удалось найти соответствия между пунктами."}
         
         AUTH_KEY  = "MDE5YTYzYWMtOTI1OS03MjgzLTgxODctNzhlYjIzMGI4MGIzOmVlOTY5ZGM4LWY1ODUtNGNjNC1hODA3LWNjMGU4N2U1ZmMyZA=="
-
+        print("Generating answer...")
         giga = GigaChat(verify_ssl_certs=False,credentials=AUTH_KEY, model=None)   
         all_responses = []    
 
