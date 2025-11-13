@@ -28,14 +28,14 @@ class AIService:
     
     #doc1 - Заявка на внесение в план-график
     #doc2 - Контракт
-    def process_query(self, doc1_path: str, doc2_path: str, use_vectorization: bool) -> Dict[str, Any]:
+    def process_query(self, doc1_path: str, doc2_path: str, use_vectorization=True) -> Dict[str, Any]:
         ##processing
-        parser_contract = ContractParser(doc1_path)
+        parser_contract = ContractParser(doc2_path)
         paragraphs_contract = parser_contract.extract_clean_text(chunk_size = 40)
         tables_contract = parser_contract.extract_table_kv_from_docx()
         contract_chunks = paragraphs_contract + tables_contract
 
-        parser_plan = PlanParser(doc2_path)
+        parser_plan = PlanParser(doc1_path)
         plan_points = parser_plan.extract_table_kv_from_docx()
 
         closest_k = find_similar_k(plan_points, contract_chunks, use_vectorization=True)

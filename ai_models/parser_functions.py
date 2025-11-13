@@ -195,8 +195,7 @@ class ContractParser:
                 tables_kv[f"table_{i}"].append(row_as_str_joined)
         tables_lines = [val for key, val in tables_kv.items()]
         
-        return np.concatenate(tables_lines)
-    
+        return [item for sublist in tables_lines for item in sublist]
 
 def find_similar_k(plan_points: List[str], contract_chunks: List[str], use_vectorization: bool) -> Dict[str, List[str]]:
     if  use_vectorization:
