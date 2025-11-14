@@ -55,7 +55,12 @@ class PlanParser:
         table = self.doc.tables[0]
 
         for row in table.rows:
-            cells = [self.normalize_text(c.text) for c in row.cells]
+            cells = []
+            for c in row.cells:
+                txt = self.normalize_text(c.text)
+                if txt == "-": txt = "отсутствует"
+                cells.append(txt)
+                
             cells = cells[1:]  # пропускаем первый столбец (если нужно)
             if len(cells) < 2:
                 continue
@@ -162,6 +167,7 @@ class ContractParser:
             # Ну просто поиск по схожести плохо работает на больших
             chunks = self.chunk_text_words(text, chunk_size=chunk_size, overlap=overlap)
             paragraphs.extend(chunks)
+        paragraphs[0]+= " " + paragraphs[1]
         return paragraphs
 
     def extract_table_kv_from_docx(self) -> Dict[str, List[str]]:
@@ -200,7 +206,7 @@ class ContractParser:
         return [item for sublist in tables_lines for item in sublist]
 
 
-def find_similar_k(plan_points: List[str], contract_chunks: List[str], use_vectorization=True) -> Dict[str, List[str]]:
+def find_similar_k(plan_points: List[str], contract_chunks: List[str], k=5,  use_vectorization=True) -> Dict[str, List[str]]:
     if  use_vectorization:
 
             AUTH_KEY  = "MDE5YTYzYWMtOTI1OS03MjgzLTgxODctNzhlYjIzMGI4MGIzOmVlOTY5ZGM4LWY1ODUtNGNjNC1hODA3LWNjMGU4N2U1ZmMyZA=="
@@ -216,7 +222,7 @@ def find_similar_k(plan_points: List[str], contract_chunks: List[str], use_vecto
             # в тензор
             plan_embeddings = torch.tensor(plan_embeddings)
             contract_embeddings = torch.tensor(contract_embeddings)
-            top_k = 15
+            top_k = k
             closest_k = defaultdict(list)
 
             for i, plan_emb in enumerate(plan_embeddings):
