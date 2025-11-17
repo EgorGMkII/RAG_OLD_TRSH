@@ -214,7 +214,7 @@ class ContractParser:
                 for key, rows in grouped:
                     rows_list = list(rows)
                     last_col_value = rows_list[-1][-1]
-                    result_rows.extend([f"{table_header[0]}: {key}", f"{table_header[-1]}: {last_col_value}"])
+                    result_rows.extend([f"{table_header[0]}: {key}", f"({key}) {table_header[-1]}: {last_col_value}"])
                     for row in rows_list:
                         result_rows.append(" ".join(row[1:-1]))
                 tables_kv[f"table_{i}"] = result_rows
@@ -224,6 +224,7 @@ class ContractParser:
 
 
 def find_similar_k(plan_points: List[str], contract_chunks: List[str], k=5,  use_vectorization=True) -> Dict[str, List[str]]:
+    closest_k = defaultdict(list)
     if  use_vectorization:
 
             AUTH_KEY  = "MDE5YTYzYWMtOTI1OS03MjgzLTgxODctNzhlYjIzMGI4MGIzOmVlOTY5ZGM4LWY1ODUtNGNjNC1hODA3LWNjMGU4N2U1ZmMyZA=="
@@ -240,7 +241,6 @@ def find_similar_k(plan_points: List[str], contract_chunks: List[str], k=5,  use
             plan_embeddings = torch.tensor(plan_embeddings)
             contract_embeddings = torch.tensor(contract_embeddings)
             top_k = k
-            closest_k = defaultdict(list)
 
             for i, plan_emb in enumerate(plan_embeddings):
                 cos_scores = util.cos_sim(plan_emb, contract_embeddings)[0]
@@ -248,7 +248,36 @@ def find_similar_k(plan_points: List[str], contract_chunks: List[str], k=5,  use
                 
                 for idx in top_results.indices:
                     closest_k[plan_points[i]].append(contract_chunks[idx])
+            
+            if "Наименование объекта закупки" in plan_points[0] and contract_chunks[0] not in closest_k[plan_points[0]]:
+                closest_k[plan_points[0]].append(contract_chunks[0])
     else:
-        pass
+        """
+        plan_points должен иметь точный вид:
 
+        'Наименование объекта закупки:
+        'Код позиции КТРУ:
+        'Количество:
+        'Сроки поставки товара, выполнения работ, оказания услуг по контракту:
+        'Место поставки товара, оказания услуг, выполнения работ:
+        """
+
+        plan_project_dict = defaultdict(list)
+        naming_result = [s for s in contract_chunks if "наименование:" in s.lower() or "наименование товара" in s.lower()]
+        plan_project_dict[plan_points[0]].append(contract_chunks[0])
+        plan_project_dict[plan_points[0]].extend(naming_result)
+
+        KTRY_result = [s for s in contract_chunks if "КТРУ" in s]
+        plan_project_dict[plan_points[1]].extend(KTRY_result)
+
+        quantity_result = [s for s in contract_chunks if "количество, штук" in s.lower()]
+        plan_project_dict[plan_points[2]].extend(quantity_result)
+
+        date_result = [s for s in contract_chunks if "срок поставки:" in s.lower() or "срок: в течение " in s.lower()]
+        plan_project_dict[plan_points[3]].extend(date_result)
+
+        address_result = [s for s in contract_chunks if "адрес поставки" in s.lower()]
+        plan_project_dict[plan_points[4]].extend(address_result)
+
+        closest_k = plan_project_dict
     return closest_k
