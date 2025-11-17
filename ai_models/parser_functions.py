@@ -6,6 +6,7 @@ from collections import defaultdict
 from sentence_transformers import SentenceTransformer, util
 from gigachat import GigaChat
 import torch
+from itertools import groupby
 
 SPACE_CHARS = ["\u00a0", "\u202f", "\u2009", "\u2002", "\u2003", "\u2004", "\u2005", "\u3000", "\ufeff",
                 "\xa0"]
@@ -60,7 +61,7 @@ class PlanParser:
                 txt = self.normalize_text(c.text)
                 if txt == "-": txt = "отсутствует"
                 cells.append(txt)
-                
+
             cells = cells[1:]  # пропускаем первый столбец (если нужно)
             if len(cells) < 2:
                 continue
@@ -167,8 +168,8 @@ class ContractParser:
             # Ну просто поиск по схожести плохо работает на больших
             chunks = self.chunk_text_words(text, chunk_size=chunk_size, overlap=overlap)
             paragraphs.extend(chunks)
-        paragraphs[0]+= " " + paragraphs[1]
-        return paragraphs
+        paragraphs[1] = paragraphs[0] + " " + paragraphs[1]
+        return paragraphs[1:]
 
     def extract_table_kv_from_docx(self) -> Dict[str, List[str]]:
         """
@@ -182,27 +183,43 @@ class ContractParser:
             if has_header:
                 table_header: List[str] = [self.normalize_text(c.text) for c in table.rows[0].cells]
 
-            for j, row in enumerate(table.rows):
-                cells: List[str] = [self.normalize_text(c.text) for c in row.cells]
-                if len(cells) < 2:
-                    continue
-                row_as_str: List[str] = []
-                # Случай с хедером. Для удобсва добавляю колонку хедера к значению через ':' (Значение характеристики: Full HD)
-                if has_header:
-                    if j == 0:
+
+            if not has_header:  # Случай без хедера. Полагаю, первая колонка - ключ
+                for j, row in enumerate(table.rows):
+                    cells: List[str] = [self.normalize_text(c.text) for c in row.cells]
+                    if len(cells) < 2:
                         continue
-                    for head, val in zip(table_header, cells):
-                        row_as_str.append("".join([head, ": ", val]))
-                # Случай без хедера. Полагаю, первая колонка - ключ
-                else:
+                    row_as_str: List[str] = []
                     key: str = cells[0]
                     val: str = " ".join(cells[1:])
                     row_as_str.append(f"{key}: {val}")
+                    row_as_str_joined: str = "; ".join(row_as_str)
+                    tables_kv[f"table_{i}"].append(row_as_str_joined)
 
-                row_as_str_joined: str = "; ".join(row_as_str)
-                tables_kv[f"table_{i}"].append(row_as_str_joined)
+            else:
+                for j, row in enumerate(table.rows):
+                    cells: List[str] = [self.normalize_text(c.text) for c in row.cells]
+                    if len(cells) < 2:
+                        continue
+                    row_as_str: List[str] = []
+                    if has_header:
+                        if j == 0:
+                            continue
+                        for head, val in zip(table_header, cells):
+                            row_as_str.append(val)
+                    tables_kv[f"table_{i}"].append(row_as_str)
+                
+                grouped = groupby(tables_kv[f"table_{i}"], key=lambda r: r[0])
+                result_rows = []
+                for key, rows in grouped:
+                    rows_list = list(rows)
+                    last_col_value = rows_list[-1][-1]
+                    result_rows.extend([f"{table_header[0]}: {key}", f"{table_header[-1]}: {last_col_value}"])
+                    for row in rows_list:
+                        result_rows.append(" ".join(row[1:-1]))
+                tables_kv[f"table_{i}"] = result_rows
+
         tables_lines = [val for key, val in tables_kv.items()]
-        
         return [item for sublist in tables_lines for item in sublist]
 
 

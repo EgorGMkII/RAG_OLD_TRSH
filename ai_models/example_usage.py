@@ -6,8 +6,8 @@ from ai_service import get_ai_service
 
 ai_service = get_ai_service()
 
-doc1_path = r"C:\Users\egorg\Documents\RAG_минцифры\Правильно\Заявка в ПГ.docx"
-doc2_path = r"C:\Users\egorg\Documents\RAG_минцифры\Правильно\Проект Контракта.docx"
+doc1_path = r"C:\Users\egorg\Documents\RAG_минцифры\Правильно\Заявка в ПГ ЛОШ.docx"
+doc2_path = r"C:\Users\egorg\Documents\RAG_минцифры\Правильно\Проект Контракта ЛОШ.docx"
 
 print(f"Processing documents:")
 print(f"Document 1: {doc1_path}")
