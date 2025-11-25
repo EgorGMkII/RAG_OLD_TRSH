@@ -262,22 +262,55 @@ def find_similar_k(plan_points: List[str], contract_chunks: List[str], k=5,  use
         'Место поставки товара, оказания услуг, выполнения работ:
         """
 
+        
         plan_project_dict = defaultdict(list)
-        naming_result = [s for s in contract_chunks if "наименование:" in s.lower() or "наименование товара" in s.lower()]
-        plan_project_dict[plan_points[0]].append(contract_chunks[0])
-        plan_project_dict[plan_points[0]].extend(naming_result)
+        if not contract_chunks or not plan_points:
+            raise ValueError("Входные данные пусты")
 
-        KTRY_result = [s for s in contract_chunks if "КТРУ" in s]
-        plan_project_dict[plan_points[1]].extend(KTRY_result)
+        mappings = [
+            {
+                'contract_keywords': ["наименование:", "наименование товара"],
+                'plan_keywords': ["наименование"],
+                'add_first_chunk': True
+            },
+            {
+                'contract_keywords': ["ктру"],
+                'plan_keywords': ["ктру"]
+            },
+            {
+                'contract_keywords': ["количество, штук"],
+                'plan_keywords': ["количество"]
+            },
+            {
+                'contract_keywords': ["срок поставки:", "срок: в течение "],
+                'plan_keywords': ["сроки поставки"]
+            },
+            {
+                'contract_keywords': ["адрес поставки"],
+                'plan_keywords': ["место поставки"]
+            }
+        ]
 
-        quantity_result = [s for s in contract_chunks if "количество, штук" in s.lower()]
-        plan_project_dict[plan_points[2]].extend(quantity_result)
+        for mapping in mappings:
+            contract_results = [
+                s for s in contract_chunks 
+                if any(kw in s.lower() for kw in mapping['contract_keywords'])
+            ]
+            
+            plan_results = [
+                plan_point for plan_point in plan_points
+                if any(kw in plan_point.lower() for kw in mapping['plan_keywords'])
+            ]
+            
+            if plan_results:
+                plan_key = plan_results[0]
+                if mapping.get('add_first_chunk') and contract_chunks:
+                    plan_project_dict[plan_key].append(contract_chunks[0])
+                plan_project_dict[plan_key].extend(contract_results)
+            else:
+                print(f"Предупреждение: не найден пункт плана для {mapping['plan_keywords']}")
 
-        date_result = [s for s in contract_chunks if "срок поставки:" in s.lower() or "срок: в течение " in s.lower()]
-        plan_project_dict[plan_points[3]].extend(date_result)
-
-        address_result = [s for s in contract_chunks if "адрес поставки" in s.lower()]
-        plan_project_dict[plan_points[4]].extend(address_result)
 
         closest_k = plan_project_dict
-    return closest_k
+
+        return closest_k
