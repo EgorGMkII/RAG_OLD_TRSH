@@ -62,7 +62,9 @@ class PlanParser:
                 if txt == "-": txt = "отсутствует"
                 cells.append(txt)
 
-            cells = cells[1:]  # пропускаем первый столбец (если нужно)
+            if not cells[0]:
+                cells = cells[1:]  # пропускаем первый столбец (если нужно)
+                
             if len(cells) < 2:
                 continue
             key = self.normalize_text(cells[0])
