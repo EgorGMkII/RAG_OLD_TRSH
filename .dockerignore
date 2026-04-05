@@ -1,0 +1,11 @@
+.git
+.gitignore
+.venv
+RAG_1
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+web/db.sqlite3
+ai_analysis.docx

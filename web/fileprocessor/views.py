@@ -1,11 +1,12 @@
+import os
 import base64
 from django.shortcuts import render, redirect
 from celery import Celery
 from celery.result import AsyncResult
 
 celery_app = Celery('django_client')
-celery_app.conf.broker_url = 'redis://localhost:6379/0'
-celery_app.conf.result_backend = 'redis://localhost:6379/0'
+celery_app.conf.broker_url = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+celery_app.conf.result_backend = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 celery_app.conf.task_serializer = 'json'
 celery_app.conf.result_serializer = 'json'
 celery_app.conf.accept_content = ['json']

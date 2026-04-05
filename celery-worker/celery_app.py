@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from celery import Celery
@@ -8,8 +9,8 @@ if str(parent_dir) not in sys.path:
 
 app = Celery('rag_worker')
 
-app.conf.broker_url = 'redis://localhost:6379/0'
-app.conf.result_backend = 'redis://localhost:6379/0'
+app.conf.broker_url = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+app.conf.result_backend = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 app.conf.accept_content = ['json']
 app.conf.task_serializer = 'json'
 app.conf.result_serializer = 'json'

@@ -1,22 +1,24 @@
 from typing import Optional, List, Dict, Any
 
-#rm
-from time import sleep
-##your imports
-import requests
-from gigachat import GigaChat
-from parser_functions import *
-from sentence_transformers import SentenceTransformer, util
-from prompts import *
-
-
-from typing import List, Dict, Any
 import nltk
+import warnings
 from nltk.tokenize import word_tokenize
 from nltk.translate.bleu_score import SmoothingFunction, corpus_bleu
 from sklearn.metrics import f1_score, precision_score, recall_score
-from openai import OpenAI
 from mistralai import Mistral
+
+try:
+    from ai_models.parser_functions import ContractParser, PlanParser, find_similar_k
+    from ai_models.prompts import SYSTEM_PROMPT
+except ModuleNotFoundError:
+    from parser_functions import ContractParser, PlanParser, find_similar_k
+    from prompts import SYSTEM_PROMPT
+
+warnings.filterwarnings(
+    "ignore",
+    message="The number of unique classes is greater than 50% of the number of samples.*",
+    module="sklearn.metrics._classification",
+)
 
 # Один раз в инициализации проекта (НЕ в каждой функции!)
 
@@ -28,11 +30,6 @@ def calculate_global_metrics(
     references: List[str],
     predictions: List[str],
 ) -> Dict[str, float]:
-
-    from nltk.tokenize import word_tokenize
-    from nltk.translate.bleu_score import SmoothingFunction, corpus_bleu
-    from sklearn.metrics import f1_score, precision_score, recall_score
-
     # токенизация
     refs_tok = [word_tokenize(r.lower()) for r in references]
     preds_tok = [word_tokenize(p.lower()) for p in predictions]
@@ -191,9 +188,7 @@ class AIService:
         if not closest_k:
             return {'ai_response': "Не удалось найти соответствия между пунктами. closest_k пуст!"}
         
-        AUTH_KEY  = "MDE5YTg4NmItNzkyZS03MjQzLTgxMTAtYTdmOGQ2ZDRhYjdiOmM4ZDQ2YTBkLWZhMjEtNDdkYi04Y2M5LThkNTcyYmY0NWJjOQ=="
         print("Generating answer...")
-        giga = GigaChat(verify_ssl_certs=False, credentials=AUTH_KEY, model="GigaChat-2")   
         all_responses = []    
 
         # ДЛЯ МЕТРИК

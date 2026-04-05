@@ -2,7 +2,11 @@
 шаблон для проверки работоспособности ai_service
 '''
 from docx import Document
-from ai_service import get_ai_service
+
+try:
+    from ai_models.ai_service import get_ai_service
+except ModuleNotFoundError:
+    from ai_service import get_ai_service
 
 ai_service = get_ai_service()
 

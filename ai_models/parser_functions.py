@@ -1,9 +1,8 @@
 from docx import Document
 import re
-import numpy as np
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict
 from collections import defaultdict
-from sentence_transformers import SentenceTransformer, util
+import torch.nn.functional as F
 from gigachat import GigaChat
 import torch
 from itertools import groupby
@@ -229,7 +228,7 @@ def find_similar_k(plan_points: List[str], contract_chunks: List[str], k=5,  use
     closest_k = defaultdict(list)
     if  use_vectorization:
 
-            AUTH_KEY  = "MDE5YTYzYWMtOTI1OS03MjgzLTgxODctNzhlYjIzMGI4MGIzOmVlOTY5ZGM4LWY1ODUtNGNjNC1hODA3LWNjMGU4N2U1ZmMyZA=="
+            AUTH_KEY  = "MDE5YTYzYWMtOTI1OS03MjgzLTgxODctNzhlYjIzMGI4MGIzOmYxNTNkNGVlLTNjOWEtNGQ3ZS1hMGNhLWE0NDJhYTZhMDJjNw=="
 
             giga = GigaChat(credentials=AUTH_KEY, verify_ssl_certs=False)
 
@@ -245,7 +244,11 @@ def find_similar_k(plan_points: List[str], contract_chunks: List[str], k=5,  use
             top_k = k
 
             for i, plan_emb in enumerate(plan_embeddings):
-                cos_scores = util.cos_sim(plan_emb, contract_embeddings)[0]
+                cos_scores = F.cosine_similarity(
+                    plan_emb.unsqueeze(0),
+                    contract_embeddings,
+                    dim=1,
+                )
                 top_results = cos_scores.topk(k=top_k)
                 
                 for idx in top_results.indices:
