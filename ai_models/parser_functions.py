@@ -15,6 +15,23 @@ QUOTES_MAP = {
     "’": "'", "‘": "'",
 }
 
+def normalize_text(text: str) -> str:
+    """
+    Нормализуем текст: пробелы, кавычки, тире, переносы
+    """
+    if text is None:
+        return ""
+    out = text
+    out = out.replace("\n", "; ")
+    for sp in SPACE_CHARS:
+        out = out.replace(sp, " ")
+    for k, v in QUOTES_MAP.items():
+        out = out.replace(k, v)
+    out = out.replace("–", "-").replace("—", "-").replace("−", "-")
+    out = re.sub(r"[ \t\f\v]*\n[ \t\f\v]*", "\n", out)  # переносы оставляем как \n
+    out = re.sub(r"[ \t]{2,}", " ", out)
+    out = re.sub(r"\s*,\s*(?:,\s*)+", ", ", out)
+    return out.strip()
 
 
 # -------- ЗАЯВКА В ПЛАН ГРАФИК --------
@@ -25,24 +42,6 @@ class PlanParser:
     def __init__(self, path: str):
         self.path = path
         self.doc = Document(path)
-
-    @staticmethod
-    def normalize_text(text: str) -> str:
-        """
-        Нормализуем текст: пробелы, кавычки, тире, переносы
-        """
-        if text is None:
-            return ""
-        out = text
-        out = out.replace("\n", "; ")
-        for sp in SPACE_CHARS:
-            out = out.replace(sp, " ")
-        for k, v in QUOTES_MAP.items():
-            out = out.replace(k, v)
-        out = out.replace("–", "-").replace("—", "-").replace("−", "-")
-        out = re.sub(r"[ \t\f\v]*\n[ \t\f\v]*", "\n", out)  # переносы оставляем как \n
-        out = re.sub(r"[ \t]{2,}", " ", out)
-        return out.strip()
 
     def extract_table_kv_from_docx(self) -> List[str]:
         """
@@ -57,7 +56,7 @@ class PlanParser:
         for row in table.rows:
             cells = []
             for c in row.cells:
-                txt = self.normalize_text(c.text)
+                txt = normalize_text(c.text)
                 if txt == "-": txt = "отсутствует"
                 cells.append(txt)
 
@@ -66,7 +65,7 @@ class PlanParser:
                 
             if len(cells) < 2:
                 continue
-            key = self.normalize_text(cells[0])
+            key = normalize_text(cells[0])
             val = ", ".join(dict.fromkeys(cells[1:]))
             if key:
                 kv[key].append(val)
@@ -80,7 +79,7 @@ class PlanParser:
         """
         full_text = []
         for para in self.doc.paragraphs:
-            text = self.normalize_text(para.text)
+            text = normalize_text(para.text)
             if text:
                 full_text.append(text)
 
@@ -98,6 +97,57 @@ class PlanParser:
             chunks.append(" ".join(current_chunk))
         return chunks
     
+
+class DocumentParser:
+    """
+    Класс для извлечения и нормализации текста и таблиц из Word-документов.
+    
+    """
+
+    def __init__(self, path: str):
+        self.path = path
+        self.doc = Document(path)
+
+    def extract_clean_text(self) -> str:
+        """
+        Извлекаем весь текст документа
+        """
+        full_text = []
+        for para in self.doc.paragraphs:
+            text = normalize_text(para.text)
+            if text:
+                full_text.append(text)
+        return "\n\n".join(full_text)
+    
+    def extract_table_data(self) -> str:
+        """
+        Извлекаем все таблицы документа в виде строк "ключ: значение"
+        """
+        tables_kv = []
+        for table in self.doc.tables:
+            for row in table.rows:
+                cells = [normalize_text(c.text) for c in row.cells]
+                if len(cells) >= 2:
+                    key = cells[0]
+                    val = ", ".join(cells[1:])
+                    tables_kv.append(normalize_text(f"{key}: {val}"))
+        return "\n".join(tables_kv)
+
+    def table_to_markdown(self):
+        md_tables = []
+        for table in self.doc.tables:
+            rows = []
+            for row in table.rows:
+                rows.append([cell.text.strip() for cell in row.cells])
+
+            md = ""
+            for i, row in enumerate(rows):
+                md += "| " + " | ".join(row) + " |\n"
+                if i == 0:
+                    md += "| " + " | ".join(["---"] * len(row)) + " |\n"
+            md_tables.append(md)
+
+        return "\n\n".join(md_tables)
 
 # -------- ПРОЕКТ КОНТРАКТА --------
 class ContractParser:
@@ -120,22 +170,6 @@ class ContractParser:
         #has_digits = any(any(ch.isdigit() for ch in t) for t in texts)
         return not had_full_digit_col and len(table.rows) > 1
 
-    @staticmethod
-    def normalize_text(text: str) -> str:
-        """
-        Вспомогательная функция нормализации текста
-        """
-        if text is None:
-            return ""
-        out = text
-        for sp in SPACE_CHARS:
-            out = out.replace(sp, " ")
-        for k, v in QUOTES_MAP.items():
-            out = out.replace(k, v)
-        out = out.replace("–", "-").replace("—", "-").replace("−", "-")
-        out = re.sub(r"[ \t\f\v]*\n[ \t\f\v]*", "\n", out)  # переносы оставляем как \n
-        out = re.sub(r"[ \t]{2,}", " ", out)
-        return out.strip()
     
     @staticmethod
     def chunk_text_words(text: str, chunk_size: int = 30, overlap: int = 10) -> List[str]:
@@ -162,7 +196,7 @@ class ContractParser:
         """
         paragraphs: List[str] = []
         for p in self.doc.paragraphs:
-            text: str = self.normalize_text(p.text)
+            text: str = normalize_text(p.text)
             if not text:
                 continue
             # разбиваем слишком длинные абзацы на чанки
@@ -182,12 +216,12 @@ class ContractParser:
         for i, table in enumerate(doc.tables):
             has_header: bool = self.table_has_header(table)
             if has_header:
-                table_header: List[str] = [self.normalize_text(c.text) for c in table.rows[0].cells]
+                table_header: List[str] = [normalize_text(c.text) for c in table.rows[0].cells]
 
 
             if not has_header:  # Случай без хедера. Полагаю, первая колонка - ключ
                 for j, row in enumerate(table.rows):
-                    cells: List[str] = [self.normalize_text(c.text) for c in row.cells]
+                    cells: List[str] = [normalize_text(c.text) for c in row.cells]
                     if len(cells) < 2:
                         continue
                     row_as_str: List[str] = []
@@ -199,7 +233,7 @@ class ContractParser:
 
             else:
                 for j, row in enumerate(table.rows):
-                    cells: List[str] = [self.normalize_text(c.text) for c in row.cells]
+                    cells: List[str] = [normalize_text(c.text) for c in row.cells]
                     if len(cells) < 2:
                         continue
                     row_as_str: List[str] = []
