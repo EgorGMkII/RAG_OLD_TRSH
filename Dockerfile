@@ -9,11 +9,15 @@ WORKDIR /app
 COPY web/requirements.txt /tmp/web-requirements.txt
 COPY celery-worker/requirements.txt /tmp/celery-requirements.txt
 COPY ai_models/requirements.txt /tmp/ai-models-requirements.txt
+COPY govno_model/requirements.txt /tmp/govno-model-requirements.txt
+COPY new_model/requirements.txt /tmp/new-model-requirements.txt
 
 RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r /tmp/web-requirements.txt && \
     pip install --no-cache-dir -r /tmp/celery-requirements.txt && \
-    pip install --no-cache-dir -r /tmp/ai-models-requirements.txt
+    pip install --no-cache-dir -r /tmp/ai-models-requirements.txt && \
+    pip install --no-cache-dir -r /tmp/govno-model-requirements.txt && \
+    pip install --no-cache-dir -r /tmp/new-model-requirements.txt
 
 COPY . /app
 

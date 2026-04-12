@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 from new_model.embeddings import get_embeddings
 from new_model.parser_functions import DocumentParser, PlanParser
-from new_model.retriever import Retriever
+from new_model.retriever import Retriever, BM25TextRetriever
 
 from govno_model.rag_processing import process_rag_points
 from govno_model.smart_processing import process_smart_points
@@ -31,6 +31,7 @@ class AIService:
         ooz_path: str,
         zapiska_path: str,
         ONMCK_path: str,
+        Obrasheniye_path: str,
     ) -> Dict[str, Any]:
         parser_contract = DocumentParser(contract_path)
         ktru_okpd = parser_contract.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
@@ -98,18 +99,27 @@ class AIService:
 # -----------------------------------------------------------------------
 #                                    RAG часть
 # -----------------------------------------------------------------------
-        paragraphs_contract = parser_contract.extract_clean_text()
-        contract_full_text = paragraphs_contract.strip()
+        parser_Obrasheniye = DocumentParser(Obrasheniye_path)
+        Obrasheniye_full_text = parser_Obrasheniye.extract_clean_text().strip()
+        if not Obrasheniye_full_text:
+            raise ValueError("Не удалось извлечь данные из обращения о проведении закупки")
+        contract_full_text = parser_contract.extract_clean_text().strip()
         ooz_plain_text = parser_ooz.extract_clean_text()
         onmck_plain_text = parser_onmck.extract_clean_text()
         rag_answer = ""
         if plan_points_rag:
-            faiss = Retriever(embeddings=get_embeddings())
-            retriever = faiss.create_retriever(
-                texts=[contract_full_text, zapiska_full_text, ooz_plain_text, onmck_plain_text],
-                n=17,
-                sources = ["Контракт", "Пояснительная записка", "ООЗ", "ОНМЦК"]
-                )
+            # faiss = Retriever(embeddings=get_embeddings())
+            # retriever = faiss.create_retriever(
+            #     texts=[contract_full_text, zapiska_full_text, ooz_plain_text, onmck_plain_text],
+            #     n=17,
+            #     sources = ["Контракт", "Пояснительная записка", "ООЗ", "ОНМЦК"]
+            #     )
+            bm25 = BM25TextRetriever()
+            retriever = bm25.create_retriever(
+                texts=[contract_full_text, zapiska_full_text, ooz_plain_text, onmck_plain_text, Obrasheniye_full_text],
+                n=8,
+                sources = ["Контракт", "Пояснительная записка", "ООЗ", "ОНМЦК", "Обращение о проведении закупки"]
+            )
             rag_answer = process_rag_points(retriever, plan_points_rag)
 
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,12 +16,6 @@
             max-height: 600px;
             overflow-y: auto;
         }
-        .query-box {
-            background-color: #e7f3ff;
-            border-left: 4px solid #0dcaf0;
-            padding: 1rem;
-            border-radius: 0.25rem;
-        }
     </style>
 </head>
 <body>
@@ -31,11 +25,11 @@
                 <div class="card shadow">
                     <div class="card-body">
                         <h1 class="card-title text-center mb-4">Ответ на запрос</h1>
-                        
+
                         {% if status == 'processing' %}
                             <div class="alert alert-info text-center" role="alert">
                                 <h4>Обрабатываем документы...</h4>
-                                <p>ИИ анализирует ваши документы и ищет релевантную информацию.</p>
+                                <p>ИИ анализирует загруженный комплект и ищет релевантную информацию.</p>
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Загрузка...</span>
                                 </div>
@@ -45,42 +39,11 @@
                                     </a>
                                 </p>
                             </div>
-                            
-                            <div class="mb-4">
-                                <h5>Документы</h5>
-                                <p class="text-muted">
-                                    <strong>Документ 1:</strong> {{ file1_name }}<br>
-                                    <strong>Документ 2:</strong> {{ file2_name }}
-                                </p>
-                            </div>
-                            
                         {% elif status == 'completed' %}
                             <div class="alert alert-success text-center" role="alert">
-                                <h4>Ответ готов!</h4>
-                                <p>ИИ нашел релевантную информацию в ваших документах.</p>
+                                <h4>Ответ готов</h4>
+                                <p>Обработка завершена, результат можно посмотреть ниже.</p>
                             </div>
-                            
-                            <div class="mb-4">
-                                <h5>Документы</h5>
-                                <p class="text-muted">
-                                    <strong>Документ 1:</strong> {{ file1_name }}<br>
-                                    <strong>Документ 2:</strong> {{ file2_name }}
-                                </p>
-                            </div>
-                            
-                            <div class="mb-4">
-                                <h5>Ответ ИИ</h5>
-                                {% if ai_response %}
-                                    <div class="response-box">
-                                        {{ ai_response }}
-                                    </div>
-                                {% else %}
-                                    <div class="alert alert-warning">
-                                        Нет ответа.
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
                         {% elif status == 'failed' %}
                             <div class="alert alert-danger text-center" role="alert">
                                 <h4>Обработка документов не удалась</h4>
@@ -90,30 +53,48 @@
                                     <p>Произошла ошибка при обработке ваших документов.</p>
                                 {% endif %}
                             </div>
-                            
+                        {% endif %}
+
+                        <div class="mb-4">
+                            <h5>Документы</h5>
+                            {% if documents %}
+                                <ul class="list-group">
+                                    {% for document in documents %}
+                                    <li class="list-group-item">
+                                        <strong>{{ document.label }}:</strong> {{ document.name }}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted">Список документов пока недоступен.</p>
+                            {% endif %}
+                        </div>
+
+                        {% if status == 'completed' %}
                             <div class="mb-4">
-                                <h5>Документы</h5>
-                                <p class="text-muted">
-                                    <strong>Документ 1:</strong> {{ file1_name }}<br>
-                                    <strong>Документ 2:</strong> {{ file2_name }}
-                                </p>
+                                <h5>Ответ ИИ</h5>
+                                {% if ai_response %}
+                                    <div class="response-box">{{ ai_response }}</div>
+                                {% else %}
+                                    <div class="alert alert-warning">Нет ответа.</div>
+                                {% endif %}
                             </div>
                         {% endif %}
-                        
+
                         <hr class="my-4">
-                        
+
                         <div class="text-center">
                             <a href="{% url 'fileprocessor:index' %}" class="btn btn-primary btn-lg">
                                 На главную
                             </a>
                         </div>
-                        
+
                         {% if task_id %}
                         <div class="mt-4">
                             <h6>Детали</h6>
                             <ul class="list-group">
                                 <li class="list-group-item">
-                                    <strong>Статус:</strong> 
+                                    <strong>Статус:</strong>
                                     <span class="badge {% if status == 'completed' %}bg-success{% elif status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}">
                                         {% if status == 'processing' %}Обработка{% elif status == 'completed' %}Завершено{% else %}Ошибка{% endif %}
                                     </span>
@@ -129,9 +110,9 @@
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     {% if status == 'processing' %}
     <script>
         setTimeout(function() {
@@ -141,4 +122,3 @@
     {% endif %}
 </body>
 </html>
-

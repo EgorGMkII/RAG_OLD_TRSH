@@ -4,6 +4,15 @@ from django.shortcuts import render, redirect
 from celery import Celery
 from celery.result import AsyncResult
 
+DOCUMENT_FIELDS = (
+    ('plan', 'План-график'),
+    ('contract', 'Контракт'),
+    ('ooz', 'ООЗ'),
+    ('zapiska', 'Пояснительная записка'),
+    ('onmck', 'ОНМЦК'),
+    ('obrasheniye', 'Обращение о проведении закупки'),
+)
+
 celery_app = Celery('django_client')
 celery_app.conf.broker_url = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 celery_app.conf.result_backend = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
@@ -13,7 +22,9 @@ celery_app.conf.accept_content = ['json']
 
 
 def index(request):
-    context = {}
+    context = {
+        'document_fields': DOCUMENT_FIELDS,
+    }
     if 'error' in request.GET:
         context['error'] = request.GET['error']
     return render(request, 'fileprocessor/index.html', context)
@@ -21,34 +32,39 @@ def index(request):
 
 def upload_and_process(request):
     if request.method == 'POST':
-        uploaded_file1 = request.FILES.get('file1')
-        uploaded_file2 = request.FILES.get('file2')
-        
-        if not uploaded_file1:
-            return redirect('fileprocessor:index?error=Please select the first file to upload.')
-        
-        if not uploaded_file2:
-            return redirect('fileprocessor:index?error=Please select the second file to upload.')
-        
-        file1_content = uploaded_file1.read()
-        file1_name = uploaded_file1.name
-        file2_content = uploaded_file2.read()
-        file2_name = uploaded_file2.name
-        
-        file1_content_b64 = base64.b64encode(file1_content).decode('utf-8')
-        file2_content_b64 = base64.b64encode(file2_content).decode('utf-8')
-        
+        documents = []
+
+        for field_name, field_label in DOCUMENT_FIELDS:
+            uploaded_file = request.FILES.get(field_name)
+            if not uploaded_file:
+                return redirect(
+                    f'fileprocessor:index?error=Please upload document: {field_label}.'
+                )
+
+            documents.append({
+                'key': field_name,
+                'label': field_label,
+                'name': uploaded_file.name,
+                'content_b64': base64.b64encode(uploaded_file.read()).decode('utf-8'),
+            })
+
         result = celery_app.send_task(
             'rag_worker.process_document_query',
-            args=[file1_content_b64, file1_name, file2_content_b64, file2_name]
+            args=[documents]
         )
-        
+
         request.session['task_id'] = result.id
-        request.session['file1_name'] = file1_name
-        request.session['file2_name'] = file2_name
-        
+        request.session['documents'] = [
+            {
+                'key': document['key'],
+                'label': document['label'],
+                'name': document['name'],
+            }
+            for document in documents
+        ]
+
         return redirect('fileprocessor:result')
-    
+
     return redirect('fileprocessor:index')
 
 
@@ -62,8 +78,7 @@ def result(request):
     
     context = {
         'task_id': task_id,
-        'file1_name': request.session.get('file1_name', ''),
-        'file2_name': request.session.get('file2_name', ''),
+        'documents': request.session.get('documents', []),
         'status': 'processing',
     }
     
@@ -71,6 +86,7 @@ def result(request):
         if result.successful():
             data = result.get()
             context['ai_response'] = data.get('ai_response', '')
+            context['documents'] = data.get('documents', context['documents'])
             context['status'] = 'completed'
         else:
             context['error'] = str(result.info) if result.info else 'Unknown error occurred'
