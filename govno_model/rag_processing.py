@@ -11,7 +11,7 @@ from .prompts import prompt_rag
 
 def _format_chunks(docs):
     return "\n\n".join(
-        f"[source={doc.metadata.get('source', 'unknown')}, chunk_id={i}]\n{doc.page_content}"
+        f"[source={doc.metadata.get('source', 'unknown')}]\n{doc.page_content}"
         for i, doc in enumerate(docs)
     )
 

@@ -117,7 +117,7 @@ class AIService:
             bm25 = BM25TextRetriever()
             retriever = bm25.create_retriever(
                 texts=[contract_full_text, zapiska_full_text, ooz_plain_text, onmck_plain_text, Obrasheniye_full_text],
-                n=8,
+                n=7,
                 sources = ["Контракт", "Пояснительная записка", "ООЗ", "ОНМЦК", "Обращение о проведении закупки"]
             )
             rag_answer = process_rag_points(retriever, plan_points_rag)
