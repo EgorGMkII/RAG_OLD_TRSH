@@ -10,6 +10,9 @@ from govno_model.rag_processing import process_rag_points
 from govno_model.smart_processing import process_smart_points
 from services.procurement_reference_registry import ProcurementReferenceRegistry
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+REGISTRY_DIR = BASE_DIR / "data" / "parsed_tables"
+
 def parse_okpd_entries(text: str):
     result = []
     for item in text.split(":")[1].split(";"):
@@ -117,21 +120,21 @@ class AIService:
 # -----------------------------------------------------------------------
 #                         ПРОВЕРКА КТРУ ОКПД НА САЙТЕ
 # -----------------------------------------------------------------------
-        registry = ProcurementReferenceRegistry(Path("data/parsed_tables"))
+        registry = ProcurementReferenceRegistry(REGISTRY_DIR)
         parsed_okpd = parse_okpd_entries(plan_points_use[0])
         parsed_ktry = parse_ktry_entries(plan_points_use[1])
 
         res_ktry = []
         res_okpd = []
 
-        for entry in parsed_ktry:
-            try:
-                res = registry.check_ktru(entry["ktru_code"], entry["name"])
-                res_ktry.append(res.message)
-            except Exception:
-                res_ktry.append(
-                    f"Возникли проблемы с доступом к сайту при проверке КТРУ {entry['ktru_code']}."
-                )
+        # for entry in parsed_ktry:
+        #     try:
+        #         res = registry.check_ktru(entry["ktru_code"], entry["name"])
+        #         res_ktry.append(res.message)
+        #     except Exception:
+        #         res_ktry.append(
+        #             f"Возникли проблемы с доступом к сайту при проверке КТРУ {entry['ktru_code']}."
+        #         )
 
         for entry in parsed_okpd:
             try:
