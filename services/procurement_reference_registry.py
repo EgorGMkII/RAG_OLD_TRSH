@@ -120,6 +120,13 @@ class ProcurementReferenceRegistry:
         return SPACE_RE.sub(" ", value.replace("\xa0", " ")).strip()
 
     @staticmethod
+    def truncate_text(value: Optional[str], limit: int = 30) -> str:
+        text = ProcurementReferenceRegistry.clean_text(value)
+        if len(text) <= limit:
+            return text
+        return text[: limit - 3].rstrip() + "..."
+
+    @staticmethod
     def normalize_okpd2(value: str) -> str:
         value = value.strip()
         if not OKPD_RE.fullmatch(value):
@@ -278,30 +285,31 @@ class ProcurementReferenceRegistry:
         )
 
         reference_name = best.get("name") or best.get("reference_name")
+        short_table_title = self.truncate_text(best.get("table_title"), limit=30)
         exact_okpd_match = matched_code == query_code
         is_parent_match = not exact_okpd_match
 
         if not name:
             if exact_okpd_match:
                 message = (
-                    f"Код {query_code} найден в таблице '{best.get('table_title')}'. "
+                    f"Код {query_code} найден в таблице '{short_table_title}'. "
                     f"Эталонное наименование: {reference_name}."
                 )
             else:
                 message = (
                     f"Код {query_code} напрямую не найден. "
-                    f"Найден родительский код {matched_code} в таблице '{best.get('table_title')}'. "
+                    f"Найден родительский код {matched_code} в таблице '{short_table_title}'. "
                     f"Эталонное наименование: {reference_name}."
                 )
         else:
             if exact_okpd_match and (exact_name_match or normalized_name_match):
                 message = (
                     f"Код {query_code} найден. Наименование совпадает с эталонной записью "
-                    f"из таблицы '{best.get('table_title')}'."
+                    f"из таблицы '{short_table_title}'."
                 )
             elif exact_okpd_match:
                 message = (
-                    f"Код {query_code} найден в таблице '{best.get('table_title')}', "
+                    f"Код {query_code} найден в таблице '{short_table_title}', "
                     f"но наименование отличается от эталонного. "
                     f"Эталонное наименование: {reference_name}. "
                     f"Проверьте соответствует ли ваше наименование '{name}'."
@@ -309,7 +317,7 @@ class ProcurementReferenceRegistry:
             else:
                 message = (
                     f"Код {query_code} напрямую не найден. "
-                    f"Найден родительский код {matched_code} в таблице '{best.get('table_title')}'. "
+                    f"Найден родительский код {matched_code} в таблице '{short_table_title}'. "
                     f"Эталонное наименование: {reference_name}. "
                     f"Проверьте соответствует ли ваше наименование '{name}'."
                 )

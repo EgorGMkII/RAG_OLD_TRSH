@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from new_model.embeddings import get_embeddings
@@ -7,7 +8,35 @@ from new_model.retriever import Retriever, BM25TextRetriever
 
 from govno_model.rag_processing import process_rag_points
 from govno_model.smart_processing import process_smart_points
+from services.procurement_reference_registry import ProcurementReferenceRegistry
 
+def parse_okpd_entries(text: str):
+    result = []
+    for item in text.split(":")[1].split(";"):
+        item = item.strip()
+        if not item:
+            continue
+
+        code, name = item.split(" - ", 1)
+        result.append({
+            "okpd2": code.strip(),
+            "name": name.strip(),
+        })
+    return result
+
+def parse_ktry_entries(text: str):
+    result = []
+    for item in text.split(":")[1].split(";"):
+        item = item.strip()
+        if not item:
+            continue
+
+        code, name = item.split(" - ", 1)
+        result.append({
+            "ktru_code": code.strip(),
+            "name": name.strip(),
+        })
+    return result
 
 def _clean_keyword_dict(items_by_key: Dict[str, list[str]]) -> str:
     clean_items = []
@@ -86,6 +115,36 @@ class AIService:
         table_onmck = parser_onmck.extract_rows_region(keyword="шт.")
 
 # -----------------------------------------------------------------------
+#                         ПРОВЕРКА КТРУ ОКПД НА САЙТЕ
+# -----------------------------------------------------------------------
+        registry = ProcurementReferenceRegistry(Path("data/parsed_tables"))
+        parsed_okpd = parse_okpd_entries(plan_points_use[0])
+        parsed_ktry = parse_ktry_entries(plan_points_use[1])
+
+        res_ktry = []
+        res_okpd = []
+
+        for entry in parsed_ktry:
+            try:
+                res = registry.check_ktru(entry["ktru_code"], entry["name"])
+                res_ktry.append(res.message)
+            except Exception:
+                res_ktry.append(
+                    f"Возникли проблемы с доступом к сайту при проверке КТРУ {entry['ktru_code']}."
+                )
+
+        for entry in parsed_okpd:
+            try:
+                res = registry.check_okpd2(entry["okpd2"], entry["name"])
+                res_okpd.append(res.message)
+            except Exception:
+                res_okpd.append(
+                    f"Возникли проблемы с доступом к сайту при проверке ОКПД2 {entry['okpd2']}."
+                )
+
+        ktry_check_result = "\n---\n".join(res_ktry)
+        okpd_check_result = "\n---\n".join(res_okpd)   
+# -----------------------------------------------------------------------
 #                              КТРУ ОКПД часть
 # -----------------------------------------------------------------------
         smart_answer = process_smart_points(
@@ -127,7 +186,19 @@ class AIService:
 #                            Ответ
 # -----------------------------------------------------------------------
         final_parts = [part for part in [smart_answer, rag_answer] if part]
-        return {"ai_response": "\n\n".join(final_parts)}
+        final_response = "\n\n".join(final_parts)
+
+        final_response = (
+        ktry_check_result 
+        + "\n----------------------------------------------------------------------------------\n"
+        + "\n----------------------------------------------------------------------------------\n"
+        + okpd_check_result
+        + "\n----------------------------------------------------------------------------------\n"
+        + "\n----------------------------------------------------------------------------------\n"
+        + final_response
+        )
+
+        return {"ai_response": final_response}
 
 
 _ai_service_instance: Optional[AIService] = None
