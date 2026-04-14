@@ -93,7 +93,7 @@ class AIService:
         parser_plan = PlanParser(plan_path)
         plan_points = parser_plan.extract_table_kv_from_docx()
         if not plan_points:
-            raise ValueError("Не удалось извлечь данные из плана-графика: plan_points пуст")
+            raise ValueError("Не удалось извлечь данные из плана-графика: ТАБЛИЦЫ ПУСТЫ ИЛИ НЕ НАЙДЕНЫ")
 
         smart_keywords = [
             "Код ОКПД",
@@ -118,7 +118,7 @@ class AIService:
 
         plan_points_str = "\n".join(plan_points_use).strip()
         if not plan_points_str:
-            raise ValueError("После фильтрации не осталось smart-пунктов плана-графика")
+            plan_points_str = "В плане-графике отсутствуют ОКПД, КТРУ или количество"
 
         parser_ooz = DocumentParser(ooz_path)
         tables_ooz = parser_ooz.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
@@ -138,7 +138,7 @@ class AIService:
         tables_zapiska = parser_zapiska.table_to_markdown()
         zapiska_full_text = ("Название: " + paragraphs_zapiska + "\n\n" + tables_zapiska).strip()
         if not zapiska_full_text:
-            raise ValueError("Не удалось извлечь данные из записки")
+            zapiska_full_text = "Не удалось извлечь данные из записки"
 
         parser_onmck = DocumentParser(ONMCK_path)
         table_onmck = parser_onmck.extract_rows_region(keyword="шт.")
@@ -190,7 +190,7 @@ class AIService:
         parser_Obrasheniye = DocumentParser(Obrasheniye_path)
         Obrasheniye_full_text = parser_Obrasheniye.extract_clean_text().strip()
         if not Obrasheniye_full_text:
-            raise ValueError("Не удалось извлечь данные из обращения о проведении закупки")
+            Obrasheniye_full_text = "Не удалось извлечь данные из обращения о проведении закупки"
         contract_full_text = parser_contract.extract_clean_text().strip()
         ooz_plain_text = parser_ooz.extract_clean_text()
         onmck_plain_text = parser_onmck.extract_clean_text()
