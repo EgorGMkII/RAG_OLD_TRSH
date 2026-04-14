@@ -55,6 +55,18 @@ def _clean_keyword_dict(items_by_key: Dict[str, list[str]]) -> str:
     return "\n".join(dict.fromkeys(clean_items))
 
 
+def _extract_keyword_windows(text: str, keywords: list[str], window: int = 90) -> str:
+    matches: list[str] = []
+    for keyword in keywords:
+        pattern = re.compile(rf"({re.escape(keyword)}[\s\S]{{0,{window}}})", re.IGNORECASE)
+        for match in pattern.findall(text):
+            clean_match = re.sub(r"\s+", " ", match).strip(" ;,\n\t")
+            if clean_match:
+                matches.append(clean_match)
+
+    return "\n".join(dict.fromkeys(matches))
+
+
 class AIService:
     def process_query(
         self,
@@ -69,7 +81,14 @@ class AIService:
         ktru_okpd = parser_contract.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
         contract_points = _clean_keyword_dict(ktru_okpd)
         if not contract_points:
-            raise ValueError("Не удалось извлечь КТРУ/ОКПД из контракта")
+            contract_plain_text = parser_contract.extract_clean_text().strip()
+            contract_points = _extract_keyword_windows(
+                contract_plain_text,
+                keywords=["КТРУ", "ОКПД"],
+                window=90,
+            )
+        if not contract_points:
+            contract_points = "В контракте не найдены КТРУ и ОКПД"
 
         parser_plan = PlanParser(plan_path)
         plan_points = parser_plan.extract_table_kv_from_docx()
@@ -105,7 +124,14 @@ class AIService:
         tables_ooz = parser_ooz.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
         ooz_points = _clean_keyword_dict(tables_ooz)
         if not ooz_points:
-            raise ValueError("Не удалось извлечь КТРУ/ОКПД из ООЗ")
+            ooz_plain_text = parser_ooz.extract_clean_text().strip()
+            ooz_points = _extract_keyword_windows(
+                ooz_plain_text,
+                keywords=["КТРУ", "ОКПД"],
+                window=90,
+            )
+        if not ooz_points:
+            ooz_points = "В ООЗ не найдены КТРУ или ОКПД"
 
         parser_zapiska = DocumentParser(zapiska_path)
         paragraphs_zapiska = parser_zapiska.extract_clean_text()
