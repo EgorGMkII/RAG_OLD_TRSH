@@ -285,7 +285,7 @@ class ProcurementReferenceRegistry:
         )
 
         reference_name = best.get("name") or best.get("reference_name")
-        short_table_title = self.truncate_text(best.get("table_title"), limit=50)
+        short_table_title = self.truncate_text(best.get("table_title"), limit=200)
         exact_okpd_match = matched_code == query_code
         is_parent_match = not exact_okpd_match
 
