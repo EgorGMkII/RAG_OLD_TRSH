@@ -5,10 +5,10 @@ from celery import Celery
 from celery.result import AsyncResult
 
 DOCUMENT_FIELDS = (
-    ('plan', 'План-график'),
-    ('contract', 'Контракт'),
+    ('plan', 'Заявку в план-график'),
+    ('contract', 'Проект контракта'),
     ('ooz', 'ООЗ'),
-    ('zapiska', 'Пояснительная записка'),
+    ('zapiska', 'Пояснительную записку'),
     ('onmck', 'ОНМЦК'),
     ('obrasheniye', 'Обращение о проведении закупки'),
 )

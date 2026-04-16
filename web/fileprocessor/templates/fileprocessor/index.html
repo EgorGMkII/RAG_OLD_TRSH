@@ -28,7 +28,7 @@
 
                             {% for field_name, field_label in document_fields %}
                             <div class="mb-4">
-                                <label for="{{ field_name }}" class="form-label">Загрузите документ: {{ field_label }}</label>
+                                <label for="{{ field_name }}" class="form-label">Загрузите "{{ field_label }}"</label>
                                 <input type="file" class="form-control" id="{{ field_name }}" name="{{ field_name }}" required>
                                 <div class="form-text">Форматы: .txt, .docx, .pdf</div>
                             </div>
