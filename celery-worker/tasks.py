@@ -8,8 +8,8 @@ from govno_model.ai_service import get_ai_service
 ai_service = get_ai_service()
 
 REQUIRED_DOCUMENTS = (
-    ("plan", "План-график"),
-    ("contract", "Контракт"),
+    ("plan", "Заявка в план-график"),
+    ("contract", "Проект контракта"),
     ("ooz", "ООЗ"),
     ("zapiska", "Пояснительная записка"),
     ("onmck", "ОНМЦК"),

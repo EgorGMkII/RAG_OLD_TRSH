@@ -120,7 +120,7 @@ class ProcurementReferenceRegistry:
         return SPACE_RE.sub(" ", value.replace("\xa0", " ")).strip()
 
     @staticmethod
-    def truncate_text(value: Optional[str], limit: int = 30) -> str:
+    def truncate_text(value: Optional[str], limit: int = 200) -> str:
         text = ProcurementReferenceRegistry.clean_text(value)
         if len(text) <= limit:
             return text
@@ -297,9 +297,10 @@ class ProcurementReferenceRegistry:
                 )
             else:
                 message = (
-                    f"Код {query_code} напрямую не найден.\n"
-                    f"Обратите внимание, родительский код  {matched_code} найден в перечне  '{short_table_title}'.\n"
-                    f"Эталонное наименование: {reference_name}."
+                    f"Код {query_code}\n"
+                    f'Обратите внимание, родительский код {matched_code} найден в перечне "{short_table_title}".\n'
+                    f"Эталонное наименование: {reference_name}.\n"
+                    f"Проверьте соответствует ли ваше наименование '{name}'."
                 )
         else:
             if exact_okpd_match and (exact_name_match or normalized_name_match):
@@ -317,8 +318,8 @@ class ProcurementReferenceRegistry:
                 )
             else:
                 message = (
-                    f"Код {query_code} напрямую не найден.\n"
-                    f"Найден родительский код {matched_code} в таблице '{short_table_title}'.\n"
+                    f"Код {query_code}\n"
+                    f'Обратите внимание, родительский код {matched_code} найден в перечне "{short_table_title}".\n'
                     f"Эталонное наименование: {reference_name}.\n"
                     f"Проверьте соответствует ли ваше наименование '{name}'."
                 )
