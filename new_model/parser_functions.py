@@ -144,6 +144,35 @@ class DocumentParser:
 
         return "\n\n".join(md_tables)
 
+    def extract_tables_columns(self, keywords: List[str]) -> str:
+        extracted_rows = []
+        keyword_lower = [kw.lower() for kw in keywords]
+
+        for table in self.doc.tables:
+            rows = [dedupe_merged_cells(row) for row in table.rows]
+            if not rows:
+                continue
+
+            header = [normalize_text(cell) for cell in rows[0]]
+            selected_indexes = [
+                idx for idx, cell in enumerate(header)
+                if any(kw in cell.lower() for kw in keyword_lower)
+            ]
+            if not selected_indexes:
+                continue
+
+            for row in rows:
+                normalized_row = [normalize_text(cell) for cell in row]
+                selected_cells = [
+                    f"{header[idx]}: {normalized_row[idx]}"
+                    for idx in selected_indexes
+                    if idx < len(normalized_row) and normalized_row[idx]
+                ]
+
+                if any(selected_cells):
+                    extracted_rows.append("| " + " | ".join(selected_cells) + " |")
+
+        return "\n".join(dict.fromkeys(extracted_rows))
 
     def extract_rows_region(self, keyword: str, left_range: int = 1, right_range:int = 1) -> str:
         extracted_rows = []

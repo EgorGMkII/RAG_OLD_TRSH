@@ -77,19 +77,10 @@ class AIService:
         ONMCK_path: str,
         Obrasheniye_path: str,
     ) -> Dict[str, Any]:
-        parser_contract = DocumentParser(contract_path)
-        ktru_okpd = parser_contract.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
-        contract_points = _clean_keyword_dict(ktru_okpd)
-        if not contract_points:
-            contract_plain_text = parser_contract.extract_clean_text().strip()
-            contract_points = _extract_keyword_windows(
-                contract_plain_text,
-                keywords=["КТРУ", "ОКПД"],
-                window=90,
-            )
-        if not contract_points:
-            contract_points = "В контракте не найдены КТРУ и ОКПД"
-
+        
+        # -----------------------------------------------------------------------
+        #                               ПЛАН-ГРАФИК
+        # -----------------------------------------------------------------------
         parser_plan = PlanParser(plan_path)
         plan_points = parser_plan.extract_table_kv_from_docx()
         if not plan_points:
@@ -110,29 +101,57 @@ class AIService:
             for plan_point in plan_points
             if any(keyword.lower() in plan_point.lower() for keyword in smart_keywords)
         ]
-        plan_points_rag = [
-            plan_point
-            for plan_point in plan_points
-            if any(keyword.lower() in plan_point.lower() for keyword in rag_keywords)
-        ]
 
         plan_points_str = "\n".join(plan_points_use).strip()
         if not plan_points_str:
             plan_points_str = "В плане-графике отсутствуют ОКПД, КТРУ или количество"
 
+        plan_points_rag = [
+            plan_point
+            for plan_point in plan_points
+            if any(keyword.lower() in plan_point.lower() for keyword in rag_keywords)
+        ]
+        # -----------------------------------------------------------------------
+        #                               КОНТРАКТ
+        # -----------------------------------------------------------------------
+        parser_contract = DocumentParser(contract_path)
+        ktru_okpd = parser_contract.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
+        contract_points = _clean_keyword_dict(ktru_okpd)
+        if not contract_points:
+            contract_plain_text = parser_contract.extract_clean_text().strip()
+            contract_points = _extract_keyword_windows(
+                contract_plain_text,
+                keywords=["КТРУ", "ОКПД"],
+                window=90,
+            )
+        if not contract_points:
+            contract_points = "В контракте не найдены КТРУ и ОКПД"
+
+
+        # -----------------------------------------------------------------------
+        #                                   ООЗ
+        # -----------------------------------------------------------------------
         parser_ooz = DocumentParser(ooz_path)
         tables_ooz = parser_ooz.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
         ooz_points = _clean_keyword_dict(tables_ooz)
         if not ooz_points:
             ooz_plain_text = parser_ooz.extract_clean_text().strip()
+            ooz_amounts = parser_ooz.extract_tables_columns(keywords=["наименование товара", "количество"])
+
             ooz_points = _extract_keyword_windows(
                 ooz_plain_text,
                 keywords=["КТРУ", "ОКПД"],
                 window=90,
             )
+            if ooz_amounts:
+                ooz_points = ooz_points + "\n" + ooz_amounts
+            
         if not ooz_points:
             ooz_points = "В ООЗ не найдены КТРУ или ОКПД"
 
+        # -----------------------------------------------------------------------
+        #                          ПОЯСНИТЕЛЬНАЯ ЗАПИСКА
+        # -----------------------------------------------------------------------
         parser_zapiska = DocumentParser(zapiska_path)
         paragraphs_zapiska = parser_zapiska.extract_clean_text()
         tables_zapiska = parser_zapiska.table_to_markdown()
@@ -140,6 +159,9 @@ class AIService:
         if not zapiska_full_text:
             zapiska_full_text = "Не удалось извлечь данные из записки"
 
+        # -----------------------------------------------------------------------
+        #                               ОНМЦК
+        # -----------------------------------------------------------------------
         parser_onmck = DocumentParser(ONMCK_path)
         table_onmck = parser_onmck.extract_rows_region(keyword="шт.")
 
@@ -153,14 +175,14 @@ class AIService:
         res_ktry = []
         res_okpd = []
 
-        # for entry in parsed_ktry:
-        #     try:
-        #         res = registry.check_ktru(entry["ktru_code"], entry["name"])
-        #         res_ktry.append(res.message)
-        #     except Exception:
-        #         res_ktry.append(
-        #             f"Возникли проблемы с доступом к сайту при проверке КТРУ {entry['ktru_code']}."
-        #         )
+        for entry in parsed_ktry:
+            try:
+                res = registry.check_ktru(entry["ktru_code"], entry["name"])
+                res_ktry.append(res.message)
+            except Exception:
+                res_ktry.append(
+                    f"Возникли проблемы с доступом к сайту при проверке КТРУ {entry['ktru_code']}."
+                )
 
         for entry in parsed_okpd:
             try:
@@ -218,12 +240,14 @@ class AIService:
         final_response = "\n\n".join(final_parts)
 
         final_response = (
-        ktry_check_result 
+        "Проверка КТРУ и ОКПД на сайтах:\n\n"
+        + ktry_check_result 
         + "\n----------------------------------------------------------------------------------\n"
         + "\n----------------------------------------------------------------------------------\n"
         + okpd_check_result
         + "\n----------------------------------------------------------------------------------\n"
         + "\n----------------------------------------------------------------------------------\n"
+        + "\n ----- Анализ документов моделью: -----\n"
         + final_response
         )
 
