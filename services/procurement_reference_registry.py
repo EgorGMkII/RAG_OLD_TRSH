@@ -274,7 +274,7 @@ class ProcurementReferenceRegistry:
                 position=None,
                 row=None,
                 message=(
-                    f"Код {query_code} не найден в локальном справочнике ПП РФ № 1875. "
+                    f"Код {query_code} не найден в локальном справочнике ПП РФ № 1875.\n "
                     f"Проверены префиксы: {checked_str}."
                 ),
             )
@@ -285,20 +285,20 @@ class ProcurementReferenceRegistry:
         )
 
         reference_name = best.get("name") or best.get("reference_name")
-        short_table_title = self.truncate_text(best.get("table_title"), limit=30)
+        short_table_title = self.truncate_text(best.get("table_title"), limit=50)
         exact_okpd_match = matched_code == query_code
         is_parent_match = not exact_okpd_match
 
         if not name:
             if exact_okpd_match:
                 message = (
-                    f"Код {query_code} найден в таблице '{short_table_title}'. "
-                    f"Эталонное наименование: {reference_name}."
+                    f"Код {query_code} найден в таблице '{short_table_title}'.\n"
+                    f"Эталонное наименование: {reference_name}.\n"
                 )
             else:
                 message = (
-                    f"Код {query_code} напрямую не найден. "
-                    f"Найден родительский код {matched_code} в таблице '{short_table_title}'. "
+                    f"Код {query_code} напрямую не найден.\n"
+                    f"Обратите внимание, родительский код  {matched_code} найден в перечне  '{short_table_title}'.\n"
                     f"Эталонное наименование: {reference_name}."
                 )
         else:
@@ -533,13 +533,13 @@ class ProcurementReferenceRegistry:
             return self._build_ktru_error_result(
                 code=code,
                 name=name,
-                message=f"Не удалось найти карточку КТРУ {code}",
+                message=f"Не удалось найти карточку КТРУ {code}\n",
             )
         except requests.RequestException:
             return self._build_ktru_error_result(
                 code=code,
                 name=name,
-                message=f"Не удалось получить карточку КТРУ {code}",
+                message=f"Не удалось получить карточку КТРУ {code}\n",
             )
 
         reference_name = common_info.get("name")
@@ -559,7 +559,7 @@ class ProcurementReferenceRegistry:
         )
 
         if not reference_name:
-            message = f"КТРУ {code} найден, но наименование автоматически извлечь не удалось."
+            message = f"КТРУ {code} найден, но наименование автоматически извлечь не удалось.\n"
             found = False
         elif not name:
             lines = [f"Наименование: {reference_name}"]
@@ -572,13 +572,16 @@ class ProcurementReferenceRegistry:
             found = True
         elif exact_name_match or normalized_name_match:
             message = (
-                f"КТРУ {code} найден. Наименование совпадает с эталонной записью КТРУ.\n"
+                f"КТРУ {code} найден.\n\n"
+                f"Ссылка на карточку: {common_info.get('url')}\n\n"
+                f"Наименование совпадает с эталонной записью КТРУ.\n"
                 f"Наименование: {reference_name}"
             )
             found = True
         else:
             message = (
-                f"КТРУ {code} найден, но наименование отличается от эталонного.\n"
+                f"КТРУ {code} найден, но наименование отличается от эталонного.\n\n"
+                f"Ссылка на карточку: {common_info.get('url')}\n\n"
                 f"Эталонное наименование: {reference_name}\n"
                 f"Проверьте соответствует ли ваше наименование '{name}'."
             )
