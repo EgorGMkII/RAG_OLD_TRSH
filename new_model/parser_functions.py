@@ -1,19 +1,37 @@
-from docx import Document
-import re
-from typing import List, Dict
 from collections import defaultdict
+import re
+from typing import Dict, List
 
-SPACE_CHARS = ["\u00a0", "\u202f", "\u2009", "\u2002", "\u2003", "\u2004", "\u2005", "\u3000", "\ufeff",
-                "\xa0"]
+from docx import Document
+
+
+SPACE_CHARS = [
+    "\u00a0",
+    "\u202f",
+    "\u2009",
+    "\u2002",
+    "\u2003",
+    "\u2004",
+    "\u2005",
+    "\u3000",
+    "\ufeff",
+    "\xa0",
+]
 QUOTES_MAP = {
-    "«": '"', "»": '"',
-    "“": '"', "”": '"', "„": '"', "‟": '"',
-    "’": "'", "‘": "'",
+    "В«": '"',
+    "В»": '"',
+    "вЂњ": '"',
+    "вЂќ": '"',
+    "вЂћ": '"',
+    "вЂџ": '"',
+    "вЂ™": "'",
+    "вЂ": "'",
 }
+
 
 def normalize_text(text: str) -> str:
     """
-    Нормализуем текст: пробелы, кавычки, тире, переносы
+    Нормализует текст: чистит пробелы, кавычки, тире и переносы строк.
     """
     if text is None:
         return ""
@@ -23,15 +41,20 @@ def normalize_text(text: str) -> str:
         out = out.replace(sp, " ")
     for k, v in QUOTES_MAP.items():
         out = out.replace(k, v)
-    out = out.replace("–", "-").replace("—", "-").replace("−", "-")
-    out = re.sub(r"[ \t\f\v]*\n[ \t\f\v]*", "\n", out)  # переносы оставляем как \n
+    out = out.replace("вЂ“", "-").replace("вЂ”", "-").replace("в€’", "-")
+    out = re.sub(r"[ \t\f\v]*\n[ \t\f\v]*", "\n", out)
     out = re.sub(r"[ \t]{2,}", " ", out)
     out = re.sub(r"\s*,\s*(?:,\s*)+", ", ", out)
     return out.strip()
 
-# дедуп для строк, образованных объединёнными ячейками в таблице 
-# (когда текст повторяется в нескольких ячейках подряд)
+
 def dedupe_merged_cells(row):
+    """
+    Убирает соседние дубли ячеек в строке таблицы, которые появляются из-за merged cells.
+
+    Пример:
+        ["КТРУ 1", "КТРУ 1", "КТРУ 2"] -> ["КТРУ 1", "КТРУ 2"]
+    """
     cleaned = []
     prev_text = None
     for cell in row.cells:
@@ -41,18 +64,106 @@ def dedupe_merged_cells(row):
         prev_text = text
     return cleaned
 
-# -------- ЗАЯВКА В ПЛАН ГРАФИК --------
+
+def parse_okpd_entries(text: str):
+    """
+    Парсит строку с ОКПД2 в список словарей `{"okpd2": ..., "name": ...}`.
+
+    Пример:
+        "ОКПД2: 31.01.12 - Стулья; 31.01.13 - Столы"
+        -> [{"okpd2": "31.01.12", "name": "Стулья"}, ...]
+    """
+    result = []
+    for item in text.split(":")[1].split(";"):
+        item = item.strip()
+        if not item:
+            continue
+
+        code, name = item.split(" - ", 1)
+        result.append({
+            "okpd2": code.strip(),
+            "name": name.strip(),
+        })
+    return result
+
+
+def parse_ktry_entries(text: str):
+    """
+    Парсит строку с КТРУ в список словарей `{"ktru_code": ..., "name": ...}`.
+
+    Пример:
+        "КТРУ: 31.01.12.150-00000003 - Тумба офисная"
+        -> [{"ktru_code": "31.01.12.150-00000003", "name": "Тумба офисная"}]
+    """
+    result = []
+    for item in text.split(":")[1].split(";"):
+        item = item.strip()
+        if not item:
+            continue
+
+        code, name = item.split(" - ", 1)
+        result.append({
+            "ktru_code": code.strip(),
+            "name": name.strip(),
+        })
+    return result
+
+
+def _clean_keyword_dict(items_by_key: Dict[str, list[str]]) -> str:
+    """
+    Склеивает словарь найденных значений в чистую строку без дублей и лишних `;`.
+
+    Пример:
+        {"ОКПД": ["ОКПД2: 31.01.12 - Стул;;", "ОКПД2: 31.01.12 - Стул"]}
+        -> "ОКПД2: 31.01.12 - Стул"
+    """
+    clean_items = []
+    for key in items_by_key:
+        for item in items_by_key[key]:
+            item = item.strip()
+            item = re.sub(r"\s*;\s*", "; ", item)
+            item = re.sub(r"(;\s*){2,}", "; ", item)
+            item = item.rstrip("; ").strip()
+            if item:
+                clean_items.append(item)
+
+    return "\n".join(dict.fromkeys(clean_items))
+
+
+def _extract_keyword_windows(text: str, keywords: list[str], window: int = 90) -> str:
+    """
+    Ищет в тексте фрагменты от ключевого слова и захватывает ещё `window` символов вправо.
+
+    Пример:
+        _extract_keyword_windows("блабла... КТРУ 31.01.12.150-00000003 тумба офисная", ["КТРУ"])
+        -> "КТРУ 31.01.12.150-00000003 тумба офисная"
+    """
+    matches: list[str] = []
+    for keyword in keywords:
+        pattern = re.compile(rf"({re.escape(keyword)}[\s\S]{{0,{window}}})", re.IGNORECASE)
+        for match in pattern.findall(text):
+            clean_match = re.sub(r"\s+", " ", match).strip(" ;,\n\t")
+            if clean_match:
+                matches.append(clean_match)
+
+    return "\n".join(dict.fromkeys(matches))
+
+
 class PlanParser:
     """
-    Заявка в ПГ - чисто таблица, разбираю её на строки
+    #### Парсер для документа "Заявка в план-график", где данные обычно лежат в таблице.
     """
+
     def __init__(self, path: str):
         self.path = path
         self.doc = Document(path)
 
     def extract_table_kv_from_docx(self) -> List[str]:
         """
-        Извлекаем таблицу ключ-значение как список строк "ключ: значение"
+        Извлекает первую таблицу документа как список строк формата `"ключ: значение"`.
+
+        Пример:
+            ["ОКПД2: 31.01.12 - Стулья", "Количество: 10"]
         """
         kv = defaultdict(list)
         if not self.doc.tables:
@@ -64,12 +175,13 @@ class PlanParser:
             cells = []
             for c in row.cells:
                 txt = normalize_text(c.text)
-                if txt == "-": txt = "отсутствует"
+                if txt == "-":
+                    txt = "отсутствует"
                 cells.append(txt)
 
             if not cells[0]:
-                cells = cells[1:]  # пропускаем первый столбец (если нужно)
-                
+                cells = cells[1:]
+
             if len(cells) < 2:
                 continue
             key = normalize_text(cells[0])
@@ -82,7 +194,7 @@ class PlanParser:
 
     def extract_clean_text(self, chunk_size: int = 50) -> str:
         """
-        Извлекаем весь текст документа
+        Возвращает весь текст документа из параграфов одной строкой с разделением через пустую строку.
         """
         full_text = []
         for para in self.doc.paragraphs:
@@ -93,10 +205,10 @@ class PlanParser:
 
         return full_text
 
+
 class DocumentParser:
     """
-    Класс для извлечения и нормализации текста и таблиц из Word-документов.
-    
+    #### Универсальный парсер Word-документов: умеет вытаскивать текст, таблицы и фрагменты по ключевым словам.
     """
 
     def __init__(self, path: str):
@@ -105,7 +217,7 @@ class DocumentParser:
 
     def extract_clean_text(self) -> str:
         """
-        Извлекаем весь текст документа
+        Возвращает весь текст документа из параграфов.
         """
         full_text = []
         for para in self.doc.paragraphs:
@@ -113,10 +225,13 @@ class DocumentParser:
             if text:
                 full_text.append(text)
         return "\n\n".join(full_text)
-    
+
     def extract_table_data(self) -> str:
         """
-        Извлекаем все таблицы документа в виде строк "ключ: значение"
+        Извлекает все строки всех таблиц в виде `"первая ячейка: остальные ячейки"`.
+
+        Пример:
+            "ОКПД2: 31.01.12 - Стулья\nКоличество: 10"
         """
         tables_kv = []
         for table in self.doc.tables:
@@ -129,6 +244,12 @@ class DocumentParser:
         return "\n".join(tables_kv)
 
     def table_to_markdown(self):
+        """
+        Преобразует все таблицы документа в markdown-таблицы.
+
+        Пример:
+            "| Поле | Значение |\n| --- | --- |\n| ОКПД2 | 31.01.12 |"
+        """
         md_tables = []
         for table in self.doc.tables:
             rows = []
@@ -145,6 +266,12 @@ class DocumentParser:
         return "\n\n".join(md_tables)
 
     def extract_tables_columns(self, keywords: List[str]) -> str:
+        """
+        Находит в таблицах колонки, чьи заголовки содержат ключевые слова, и возвращает их построчно.
+
+        Пример:
+            "| КТРУ: 31.01.12.150-00000003 | ОКПД2: 31.01.12 |"
+        """
         extracted_rows = []
         keyword_lower = [kw.lower() for kw in keywords]
 
@@ -174,7 +301,13 @@ class DocumentParser:
 
         return "\n".join(dict.fromkeys(extracted_rows))
 
-    def extract_rows_region(self, keyword: str, left_range: int = 1, right_range:int = 1) -> str:
+    def extract_rows_region(self, keyword: str, left_range: int = 1, right_range: int = 1) -> str:
+        """
+        Ищет строки таблиц с ключевым словом и возвращает найденную ячейку вместе с соседними.
+
+        Пример:
+            "| Наименование | КТРУ | 31.01.12.150-00000003 |"
+        """
         extracted_rows = []
         keyword_lower = keyword.lower()
 
@@ -209,7 +342,10 @@ class DocumentParser:
 
     def extract_table_cells_by_keyword(self, keywords: List[str]) -> Dict[str, List[str]]:
         """
-        Ищем в таблицах строки, содержащие ключевые слова, и извлекаем их ячейки
+        Ищет в таблицах ячейки, содержащие ключевые слова, и группирует найденное по каждому ключу.
+
+        Пример:     
+            {"ОКПД": ["ОКПД2: 31.01.12 - Стулья"]}
         """
         results = defaultdict(list)
         for table in self.doc.tables:
