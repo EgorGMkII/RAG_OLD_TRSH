@@ -309,16 +309,17 @@ class ProcurementReferenceRegistry:
                 )
             elif exact_okpd_match:
                 message = (
-                    f"Код {query_code} найден в таблице '{short_table_title}', "
-                    f"но наименование отличается от эталонного. "
-                    f"Эталонное наименование: {reference_name}. "
+                    f"Код {query_code} найден\n"
+                    f"в таблице '{short_table_title}',\n"
+                    f"но наименование отличается от эталонного.\n"
+                    f"Эталонное наименование: {reference_name}.\n"
                     f"Проверьте соответствует ли ваше наименование '{name}'."
                 )
             else:
                 message = (
-                    f"Код {query_code} напрямую не найден. "
-                    f"Найден родительский код {matched_code} в таблице '{short_table_title}'. "
-                    f"Эталонное наименование: {reference_name}. "
+                    f"Код {query_code} напрямую не найден.\n"
+                    f"Найден родительский код {matched_code} в таблице '{short_table_title}'.\n"
+                    f"Эталонное наименование: {reference_name}.\n"
                     f"Проверьте соответствует ли ваше наименование '{name}'."
                 )
 
