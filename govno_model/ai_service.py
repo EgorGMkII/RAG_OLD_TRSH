@@ -36,7 +36,10 @@ class AIService:
         # -----------------------------------------------------------------------
         #                               ПЛАН-ГРАФИК
         # -----------------------------------------------------------------------
-        plan_points = _parse_plan_points(plan_path)
+        try:
+            plan_points = _parse_plan_points(plan_path)
+        except Exception as e:
+            plan_points = [f"Ошибка при парсинге плана-графика: {str(e)}"]
 
         smart_keywords = [
             "Код ОКПД",
@@ -58,13 +61,27 @@ class AIService:
         # -----------------------------------------------------------------------
         #            ПУНКТЫ КОНТРАКТА, ООЗ, ЗАПИСКИ, ОНМЦК
         # -----------------------------------------------------------------------
-        contract_points = _parse_contract_points(contract_path)
+        try:
+            contract_points = _parse_contract_points(contract_path)
+        except Exception as e:
+            contract_points = [f"Ошибка при парсинге контракта: {str(e)}"]
 
-        ooz_points = _parse_ooz_points(ooz_path)
+        try:
+            ooz_points = _parse_ooz_points(ooz_path)
+        except Exception as e:
+            ooz_points = [f"Ошибка при парсинге ООЗ: {str(e)}"]
 
-        zapiska_points = _parse_zapiska_text(zapiska_path)
+        try:
+            zapiska_points = _parse_zapiska_text(zapiska_path)
+        except Exception as e:
+            zapiska_points = [f"Ошибка при парсинге пояснительной записки: {str(e)}"]
 
-        ONMCK_points = _parse_onmck_text(ONMCK_path)
+        try:
+            ONMCK_points = _parse_onmck_text(ONMCK_path)
+        except Exception as e:
+            ONMCK_points = [f"Ошибка при парсинге ОНМЦК: {str(e)}"]
+
+        
 
 # -----------------------------------------------------------------------
 #                         ПРОВЕРКА КТРУ ОКПД НА САЙТЕ

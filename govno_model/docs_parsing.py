@@ -50,7 +50,7 @@ def _parse_ooz_points(ooz_path: str, window: int = 200) -> str:
             keywords=["ОКПД"],
             window=window,
         )
-        ooz_points += extract_ktru_block(ooz_plain_text, tail_chars=30, fallback_chars=150)
+        ooz_points = ooz_points + "\n" + extract_ktru_block(ooz_plain_text, tail_chars=30, fallback_chars=150)
         
         if ooz_amounts:
             ooz_points = ooz_points + "\n" + ooz_amounts
