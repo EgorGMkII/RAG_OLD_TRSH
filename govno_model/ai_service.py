@@ -86,20 +86,26 @@ class AIService:
 # -----------------------------------------------------------------------
 #                         ПРОВЕРКА КТРУ ОКПД НА САЙТЕ
 # -----------------------------------------------------------------------
-        res_ktry, res_okpd = get_regestry_response_okpd_ktry(plan_points_use, REGISTRY_DIR)
+        try:
+            res_ktry, res_okpd = get_regestry_response_okpd_ktry(plan_points_use, REGISTRY_DIR)
+        except Exception as e:
+            res_ktry, res_okpd = [f"Ошибка проверки КТРУ: {e}"], [f"Ошибка проверки ОКПД: {e}"]
         # res_ktry, res_okpd = "бе", "ме"
         ktry_check_result = "\n-----------------------------------------------------------------------\n".join(res_ktry)
         okpd_check_result = "\n-----------------------------------------------------------------------\n".join(res_okpd)   
 # -----------------------------------------------------------------------
 #                              КТРУ ОКПД часть
 # -----------------------------------------------------------------------
-        smart_answer = process_smart_points(
-            plan_points=plan_points_str,
-            contract_points=contract_points,
-            OOZ_points=ooz_points,
-            zapiska_points=zapiska_points,
-            ONMCK_points=ONMCK_points,
-        )
+        try:
+            smart_answer = process_smart_points(
+                plan_points=plan_points_str,
+                contract_points=contract_points,
+                OOZ_points=ooz_points,
+                zapiska_points=zapiska_points,
+                ONMCK_points=ONMCK_points,
+            )
+        except Exception as e:
+            smart_answer = f"Не удалось сформулировать ответ по КТРУ и ОКПД. Ошибка {e}"
 
 # -----------------------------------------------------------------------
 #                                 RAG часть
@@ -109,31 +115,46 @@ class AIService:
         parser_onmck = DocumentParser(ONMCK_path)
         parser_Obrasheniye = DocumentParser(Obrasheniye_path)
 
-        Obrasheniye_full_text = parser_Obrasheniye.extract_clean_text().strip()
-        if not Obrasheniye_full_text:
+        try:
+            Obrasheniye_full_text = parser_Obrasheniye.extract_clean_text().strip()
+            if not Obrasheniye_full_text:
+                Obrasheniye_full_text = "Не удалось извлечь данные из обращения о проведении закупки"
+        except Exception:
             Obrasheniye_full_text = "Не удалось извлечь данные из обращения о проведении закупки"
-        
-        contract_full_text = parser_contract.extract_clean_text().strip()
-        if not contract_full_text:
+
+        try:
+            contract_full_text = parser_contract.extract_clean_text().strip()
+            if not contract_full_text:
+                contract_full_text = "Не удалось извлечь данные из текста контракта"
+        except Exception:
             contract_full_text = "Не удалось извлечь данные из текста контракта"
-        
-        ooz_plain_text = parser_ooz.extract_clean_text().strip()
-        if not ooz_plain_text:
+
+        try:
+            ooz_plain_text = parser_ooz.extract_clean_text().strip()
+            if not ooz_plain_text:
+                ooz_plain_text = "Не удалось извлечь данные из документа ООЗ"
+        except Exception:
             ooz_plain_text = "Не удалось извлечь данные из документа ООЗ"
-        
-        onmck_plain_text = parser_onmck.extract_clean_text().strip()
-        if not onmck_plain_text:
+
+        try:
+            onmck_plain_text = parser_onmck.extract_clean_text().strip()
+            if not onmck_plain_text:
+                onmck_plain_text = "Не удалось извлечь данные из ОНМЦК"
+        except Exception:
             onmck_plain_text = "Не удалось извлечь данные из ОНМЦК"
 
-        rag_answer = ""
-        if plan_points_rag:
-            bm25 = BM25TextRetriever()
-            retriever = bm25.create_retriever(
-                texts=[contract_full_text, zapiska_points, ooz_plain_text, onmck_plain_text, Obrasheniye_full_text],
-                n=7,
-                sources = ["Проект контракта", "Пояснительная записка", "ООЗ", "ОНМЦК", "Обращение о проведении закупки"]
-            )
-            rag_answer = process_rag_points(retriever, plan_points_rag)
+        try:
+            rag_answer = ""
+            if plan_points_rag:
+                bm25 = BM25TextRetriever()
+                retriever = bm25.create_retriever(
+                    texts=[contract_full_text, zapiska_points, ooz_plain_text, onmck_plain_text, Obrasheniye_full_text],
+                    n=7,
+                    sources = ["Проект контракта", "Пояснительная записка", "ООЗ", "ОНМЦК", "Обращение о проведении закупки"]
+                )
+                rag_answer = process_rag_points(retriever, plan_points_rag)
+        except Exception as e:
+            rag_answer = f"Не удалось сформулировать RAG-ответ. Ошибка: {e}"
 
 # -----------------------------------------------------------------------
 #                 Ответ: Проверка КТРУ и ОКПД + SMART + RAG
