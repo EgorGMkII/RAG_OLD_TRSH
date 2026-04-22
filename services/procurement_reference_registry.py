@@ -292,41 +292,41 @@ class ProcurementReferenceRegistry:
         if not name:
             if exact_okpd_match:
                 message = (
-                    f"<ins>Обратите внимание<ins> Код {query_code} <ins>Входит в перечень<ins> '{short_table_title}'.\n"
+                    f"<ins>Обратите внимание</ins> Код {query_code} <ins>Входит в перечень</ins> '{short_table_title}'.\n"
                     f"Эталонное наименование: {reference_name}.\n"
-                    f"<ins>Необходимо учесть требования постановления при проведении закупки.<ins>"
+                    f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
                 )
             else:
                 message = (
-                    f"<ins>Обратите внимание<ins> на Код {query_code}.\n"
-                    f'Родительский код {matched_code} <ins>Входит в перечень<ins> "{short_table_title}".\n'
+                    f"<ins>Обратите внимание</ins> на Код {query_code}.\n"
+                    f'Родительский код {matched_code} <ins>Входит в перечень</ins> "{short_table_title}".\n'
                     f"Эталонное наименование: {reference_name}.\n"
                     f"Проверьте соответствует ли ваше наименование '{name}'."
-                    f"<ins>Необходимо учесть требования постановления при проведении закупки.<ins>"
+                    f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
                 )
         else:
             if exact_okpd_match and (exact_name_match or normalized_name_match):
                 message = (
-                    f"<ins>Обратите внимание<ins> Код {query_code} <ins>Входит в перечень<ins> '{short_table_title}'.\n"
-                    f"<ins>Необходимо учесть требования постановления при проведении закупки.<ins>"
+                    f"<ins>Обратите внимание</ins> Код {query_code} <ins>Входит в перечень</ins> '{short_table_title}'.\n"
+                    f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
                 )
             elif exact_okpd_match:
                 message = (
-                    f"<ins>Обратите внимание<ins> Код {query_code} <ins>Входит в перечень<ins> \n"
+                    f"<ins>Обратите внимание</ins> Код {query_code} <ins>Входит в перечень</ins> \n"
                     f"'{short_table_title}',\n"
-                    f"<ins>но наименование отличается от эталонного.<ins>\n"
-                    f"<ins>Эталонное наименование:<ins> {reference_name}.\n"
+                    f"<ins>но наименование отличается от эталонного.</ins>\n"
+                    f"<ins>Эталонное наименование:</ins> {reference_name}.\n"
                     f"Проверьте соответствует ли ваше наименование '{name}'.\n"
-                    f"<ins>Необходимо учесть требования постановления при проведении закупки.<ins>"
+                    f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
                      
                 )
             else:
                 message = (
                     f"Код {query_code}\n"
-                    f'<ins>Обратите внимание<ins>, родительский код {matched_code} <ins>Входит в перечень<ins> "{short_table_title}".\n'
+                    f'<ins>Обратите внимание</ins>, родительский код {matched_code} <ins>Входит в перечень</ins> "{short_table_title}".\n'
                     f"Эталонное наименование: {reference_name}.\n"
                     f"Проверьте соответствует ли ваше наименование '{name}'."
-                    f"<ins>Необходимо учесть требования постановления при проведении закупки.<ins>"
+                    f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
                 )
 
         return MatchResult(
