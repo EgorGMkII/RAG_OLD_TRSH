@@ -6,7 +6,7 @@
 # _parse_obrasheniye_text(...)
 from typing import List
 from new_model.parser_functions import DocumentParser, PlanParser
-from new_model.parser_functions import parse_okpd_entries, parse_ktry_entries, _clean_keyword_dict, _extract_keyword_windows
+from new_model.parser_functions import extract_ktru_block, _clean_keyword_dict, _extract_keyword_windows
 
 
 def _parse_plan_points(plan_path: str) -> List[str]:
@@ -17,7 +17,7 @@ def _parse_plan_points(plan_path: str) -> List[str]:
 
     return plan_points
 
-def _parse_contract_points(contract_path: str) -> str:
+def _parse_contract_points(contract_path: str, window: int = 100) -> str:
     parser_contract = DocumentParser(contract_path)
     ktru_okpd = parser_contract.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
     contract_points = _clean_keyword_dict(ktru_okpd)
@@ -25,9 +25,11 @@ def _parse_contract_points(contract_path: str) -> str:
         contract_plain_text = parser_contract.extract_clean_text().strip()
         contract_points = _extract_keyword_windows(
             contract_plain_text,
-            keywords=["КТРУ", "ОКПД"],
-            window=90,
+            keywords=["ОКПД"],
+            window=window,
         )
+        contract_points += extract_ktru_block(contract_plain_text, tail_chars=30, fallback_chars=150)
+
         table_contract_points = parser_contract.extract_tables_columns(keywords=["ОКПД", "КТРУ"])
         if table_contract_points:
             contract_points = contract_points + "\n" + table_contract_points
@@ -36,7 +38,7 @@ def _parse_contract_points(contract_path: str) -> str:
 
     return contract_points
 
-def _parse_ooz_points(ooz_path: str) -> str:
+def _parse_ooz_points(ooz_path: str, window: int = 200) -> str:
     parser_ooz = DocumentParser(ooz_path)
     tables_ooz = parser_ooz.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
     ooz_points = _clean_keyword_dict(tables_ooz)
@@ -45,9 +47,10 @@ def _parse_ooz_points(ooz_path: str) -> str:
         ooz_amounts = parser_ooz.extract_tables_columns(keywords=["наименование товара", "количество", "ОКПД", "КТРУ"])
         ooz_points = _extract_keyword_windows(
             ooz_plain_text,
-            keywords=["КТРУ", "ОКПД"],
-            window=90,
+            keywords=["ОКПД"],
+            window=window,
         )
+        ooz_points += extract_ktru_block(ooz_plain_text, tail_chars=30, fallback_chars=150)
         
         if ooz_amounts:
             ooz_points = ooz_points + "\n" + ooz_amounts

@@ -18,6 +18,18 @@ SPACE_CHARS = [
     "\xa0",
 ]
 QUOTES_MAP = {
+    "\u00ab": '"',
+    "\u00bb": '"',
+    "\u201c": '"',
+    "\u201d": '"',
+    "\u201e": '"',
+    "\u201f": '"',
+    "\u2033": '"',
+    "\u2018": "'",
+    "\u2019": "'",
+    "\u201a": "'",
+    "\u201b": "'",
+    "\u2032": "'",
     "В«": '"',
     "В»": '"',
     "вЂњ": '"',
@@ -26,7 +38,27 @@ QUOTES_MAP = {
     "вЂџ": '"',
     "вЂ™": "'",
     "вЂ": "'",
+    "Р’В«": '"',
+    "Р’В»": '"',
+    "РІР‚Сљ": '"',
+    "РІР‚Сњ": '"',
+    "РІР‚С›": '"',
+    "РІР‚Сџ": '"',
+    "РІР‚в„ў": "'",
+    "РІР‚В": "'",
 }
+DASH_CHARS = [
+    "\u2010",
+    "\u2011",
+    "\u2012",
+    "\u2013",
+    "\u2014",
+    "\u2015",
+    "\u2212",
+    "\ufe58",
+    "\ufe63",
+    "\uff0d",
+]
 
 
 def normalize_text(text: str) -> str:
@@ -41,7 +73,8 @@ def normalize_text(text: str) -> str:
         out = out.replace(sp, " ")
     for k, v in QUOTES_MAP.items():
         out = out.replace(k, v)
-    out = out.replace("вЂ“", "-").replace("вЂ”", "-").replace("в€’", "-")
+    for dash in DASH_CHARS:
+        out = out.replace(dash, "-")
     out = re.sub(r"[ \t\f\v]*\n[ \t\f\v]*", "\n", out)
     out = re.sub(r"[ \t]{2,}", " ", out)
     out = re.sub(r"\s*,\s*(?:,\s*)+", ", ", out)
@@ -78,7 +111,7 @@ def parse_okpd_entries(text: str):
         item = item.strip()
         if not item:
             continue
-
+        item = normalize_text(item)
         code, name = item.split(" - ", 1)
         result.append({
             "okpd2": code.strip(),
@@ -100,7 +133,7 @@ def parse_ktry_entries(text: str):
         item = item.strip()
         if not item:
             continue
-
+        item = normalize_text(item)
         code, name = item.split(" - ", 1)
         result.append({
             "ktru_code": code.strip(),
@@ -138,6 +171,7 @@ def _extract_keyword_windows(text: str, keywords: list[str], window: int = 90) -
         _extract_keyword_windows("блабла... КТРУ 31.01.12.150-00000003 тумба офисная", ["КТРУ"])
         -> "КТРУ 31.01.12.150-00000003 тумба офисная"
     """
+
     matches: list[str] = []
     for keyword in keywords:
         pattern = re.compile(rf"({re.escape(keyword)}[\s\S]{{0,{window}}})", re.IGNORECASE)
@@ -148,6 +182,24 @@ def _extract_keyword_windows(text: str, keywords: list[str], window: int = 90) -
 
     return "\n".join(dict.fromkeys(matches))
 
+def extract_ktru_block(text: str, tail_chars: int = 30, fallback_chars: int = 150) -> str:
+    start_match = re.search(r"КТРУ\s*:", text, flags=re.IGNORECASE)
+    if not start_match:
+        return ""
+
+    start = start_match.start()
+    fragment = text[start:]
+
+    ktru_pattern = r"\d+(?:\.\d+){3}-\d+"
+    matches = list(re.finditer(ktru_pattern, fragment))
+
+    if not matches:
+        return fragment[:fallback_chars].strip()
+
+    last_match = matches[-1]
+    end = last_match.end() + tail_chars
+
+    return fragment[:end].strip()
 
 class PlanParser:
     """

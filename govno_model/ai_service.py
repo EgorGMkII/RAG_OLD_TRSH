@@ -2,7 +2,6 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Optional, List
 
-from new_model.embeddings import get_embeddings
 from new_model.parser_functions import DocumentParser, PlanParser, parse_okpd_entries, parse_ktry_entries, _clean_keyword_dict, _extract_keyword_windows
 from new_model.retriever import Retriever, BM25TextRetriever
 
@@ -71,7 +70,7 @@ class AIService:
 #                         ПРОВЕРКА КТРУ ОКПД НА САЙТЕ
 # -----------------------------------------------------------------------
         res_ktry, res_okpd = get_regestry_response_okpd_ktry(plan_points_use, REGISTRY_DIR)
-
+        # res_ktry, res_okpd = "бе", "ме"
         ktry_check_result = "\n-----------------------------------------------------------------------\n".join(res_ktry)
         okpd_check_result = "\n-----------------------------------------------------------------------\n".join(res_okpd)   
 # -----------------------------------------------------------------------
