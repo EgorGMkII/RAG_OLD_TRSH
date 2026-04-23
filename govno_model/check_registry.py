@@ -1,8 +1,9 @@
 from services.procurement_reference_registry import ProcurementReferenceRegistry
 from new_model.parser_functions import parse_okpd_entries, parse_ktry_entries
 from typing import List
+from pathlib import Path
 
-def get_regestry_response_okpd_ktry(plan_points_use: List[str], REGISTRY_DIR: str) -> List[str]:
+def get_regestry_response_okpd_ktry(plan_points_use: List[str], REGISTRY_DIR: Path) -> List[str]:
     try:
         registry = ProcurementReferenceRegistry(REGISTRY_DIR)
     except Exception as e:

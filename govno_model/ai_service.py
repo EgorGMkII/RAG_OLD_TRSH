@@ -64,22 +64,22 @@ class AIService:
         try:
             contract_points = _parse_contract_points(contract_path)
         except Exception as e:
-            contract_points = [f"Ошибка при парсинге контракта: {str(e)}"]
+            contract_points = f"Ошибка при парсинге контракта: {str(e)}"
 
         try:
             ooz_points = _parse_ooz_points(ooz_path)
         except Exception as e:
-            ooz_points = [f"Ошибка при парсинге ООЗ: {str(e)}"]
+            ooz_points = f"Ошибка при парсинге ООЗ: {str(e)}"
 
         try:
             zapiska_points = _parse_zapiska_text(zapiska_path)
         except Exception as e:
-            zapiska_points = [f"Ошибка при парсинге пояснительной записки: {str(e)}"]
+            zapiska_points = f"Ошибка при парсинге пояснительной записки: {str(e)}"
 
         try:
             ONMCK_points = _parse_onmck_text(ONMCK_path)
         except Exception as e:
-            ONMCK_points = [f"Ошибка при парсинге ОНМЦК: {str(e)}"]
+            ONMCK_points = f"Ошибка при парсинге ОНМЦК: {str(e)}"
 
         
 

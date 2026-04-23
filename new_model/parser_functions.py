@@ -98,6 +98,75 @@ def dedupe_merged_cells(row):
     return cleaned
 
 
+def get_row_cells(row) -> List[str]:
+    """
+    Возвращает все ячейки строки без удаления дублей, чтобы сохранить
+    исходные индексы колонок в таблицах со сложным merged-header.
+    """
+    return [cell.text.strip() for cell in row.cells]
+
+
+def row_looks_like_data(cells: List[str]) -> bool:
+    """
+    Пытается отличить строку данных от строки заголовка.
+
+    Нужно для таблиц с многоуровневым header: верхние строки объединяются
+    в один логический заголовок, а первая строка с данными уже не участвует
+    в формировании `selected_indexes`.
+    """
+    normalized = [normalize_text(cell) for cell in cells if normalize_text(cell)]
+    if not normalized:
+        return False
+
+    if re.fullmatch(r"\d+", normalized[0]):
+        return True
+
+    code_patterns = (
+        r"\d+(?:\.\d+){2,}-\d+",
+        r"\d{2}\.\d{2}\.\d{2,}",
+    )
+    if any(re.search(pattern, cell) for pattern in code_patterns for cell in normalized):
+        return True
+
+    numeric_like_cells = sum(bool(re.search(r"\d", cell)) for cell in normalized)
+    return numeric_like_cells >= max(2, len(normalized) // 2)
+
+
+def build_table_header(rows: List[List[str]], max_header_rows: int = 3) -> tuple[List[str], int]:
+    """
+    Собирает плоский заголовок таблицы из одной или нескольких верхних строк.
+
+    Для обычной таблицы вернёт первую строку как есть.
+    Для таблицы со сложным header склеит несколько строк по каждой колонке:
+    "Требования ... | Значение характеристики".
+    """
+    if not rows:
+        return [], 0
+
+    header_rows = []
+    for row in rows[:max_header_rows]:
+        if header_rows and row_looks_like_data(row):
+            break
+        header_rows.append([normalize_text(cell) for cell in row])
+
+    if not header_rows:
+        header_rows = [[normalize_text(cell) for cell in rows[0]]]
+
+    width = max(len(row) for row in header_rows)
+    header = []
+    for idx in range(width):
+        parts = []
+        for row in header_rows:
+            if idx >= len(row):
+                continue
+            cell = row[idx]
+            if cell and cell not in parts:
+                parts.append(cell)
+        header.append(" | ".join(parts))
+
+    return header, len(header_rows)
+
+
 def parse_okpd_entries(text: str):
     """
     Парсит строку с ОКПД2 в список словарей `{"okpd2": ..., "name": ...}`.
@@ -328,28 +397,32 @@ class DocumentParser:
         keyword_lower = [kw.lower() for kw in keywords]
 
         for table in self.doc.tables:
-            rows = [dedupe_merged_cells(row) for row in table.rows]
+            rows = [get_row_cells(row) for row in table.rows if len(dedupe_merged_cells(row))>1]
+            # print(rows)
             if not rows:
                 continue
 
-            header = [normalize_text(cell) for cell in rows[0]]
+            header, header_rows_count = build_table_header(rows)
             selected_indexes = [
                 idx for idx, cell in enumerate(header)
                 if any(kw in cell.lower() for kw in keyword_lower)
             ]
             if not selected_indexes:
                 continue
-
-            for row in rows:
+            
+            i=0
+            for row in rows[header_rows_count:]:
+                
                 normalized_row = [normalize_text(cell) for cell in row]
                 selected_cells = [
                     f"{header[idx]}: {normalized_row[idx]}"
                     for idx in selected_indexes
                     if idx < len(normalized_row) and normalized_row[idx]
                 ]
-
+                # print(selected_cells)
                 if any(selected_cells):
-                    extracted_rows.append("| " + " | ".join(selected_cells) + " |")
+                    i+=1
+                    extracted_rows.append("| " + " | ".join(selected_cells) + " |") #"| " + str(i) +
 
         return "\n".join(dict.fromkeys(extracted_rows))
 
