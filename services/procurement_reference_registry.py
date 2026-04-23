@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from datetime import date, datetime
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -145,6 +146,90 @@ class ProcurementReferenceRegistry:
         parts = code.split(".")
         return [".".join(parts[:i]) for i in range(len(parts), 1, -1)]
 
+    @staticmethod
+    def _is_allowed_appendix(row: dict[str, Any]) -> bool:
+        table_id = (row.get("table_id") or "").strip()
+        return table_id in {"table_01", "table_02"}
+
+    @classmethod
+    def _build_row_okpd_candidates(cls, okpd2: str) -> list[str]:
+        return cls.build_okpd_candidates(cls.normalize_okpd2(okpd2))
+
+    @classmethod
+    def _codes_overlap_by_parent(cls, left_okpd2: str, right_okpd2: str) -> bool:
+        left_parts = cls.normalize_okpd2(left_okpd2).split(".")
+        right_parts = cls.normalize_okpd2(right_okpd2).split(".")
+        common_length = min(len(left_parts), len(right_parts))
+        return left_parts[:common_length] == right_parts[:common_length]
+
+    def _find_okpd2_prefix_matches_in_allowed_appendices(self, okpd2: str) -> list[dict[str, Any]]:
+        code = self.normalize_okpd2(okpd2)
+        prefix = f"{code}.%"
+
+        rows: list[dict[str, Any]] = []
+        seen_keys: set[tuple[str, str, int]] = set()
+
+        if self.sqlite_path.exists():
+            connection = sqlite3.connect(self.sqlite_path)
+            connection.row_factory = sqlite3.Row
+            try:
+                cursor = connection.cursor()
+                cursor.execute(
+                    """
+                    SELECT
+                        okpd2,
+                        name,
+                        table_id,
+                        table_title,
+                        appendix_title,
+                        row_index,
+                        position,
+                        raw_code_text,
+                        row_json
+                    FROM okpd_index
+                    WHERE okpd2 LIKE ?
+                      AND table_id IN ('table_01', 'table_02')
+                    ORDER BY table_id, row_index
+                    """,
+                    (prefix,),
+                )
+                for row in cursor.fetchall():
+                    payload = dict(row)
+                    payload["row"] = json.loads(payload.pop("row_json"))
+                    row_key = (
+                        str(payload.get("table_id") or ""),
+                        str(payload.get("okpd2") or ""),
+                        int(payload.get("row_index") or 0),
+                    )
+                    if row_key in seen_keys:
+                        continue
+                    seen_keys.add(row_key)
+                    rows.append(payload)
+            finally:
+                connection.close()
+
+        if self.index_json_path.exists():
+            payload = json.loads(self.index_json_path.read_text(encoding="utf-8"))
+            for row in payload:
+                row_code = row.get("okpd2")
+                if not isinstance(row_code, str):
+                    continue
+                if not row_code.startswith(f"{code}."):
+                    continue
+                if not self._is_allowed_appendix(row):
+                    continue
+                row_key = (
+                    str(row.get("table_id") or ""),
+                    str(row.get("okpd2") or ""),
+                    int(row.get("row_index") or 0),
+                )
+                if row_key in seen_keys:
+                    continue
+                seen_keys.add(row_key)
+                rows.append(row)
+
+        return rows
+
     def _load_rows_from_sqlite(self, okpd2: str) -> list[dict[str, Any]]:
         if not self.sqlite_path.exists():
             return []
@@ -196,14 +281,41 @@ class ProcurementReferenceRegistry:
 
         return self._load_rows_from_json(code)
 
+    def find_okpd2_in_allowed_appendices(self, okpd2: str) -> list[dict[str, Any]]:
+        return [row for row in self.find_okpd2(okpd2) if self._is_allowed_appendix(row)]
+
     def find_okpd2_with_fallback(self, okpd2: str) -> tuple[Optional[str], list[dict[str, Any]], list[str]]:
         code = self.normalize_okpd2(okpd2)
         checked_candidates = self.build_okpd_candidates(code)
 
+        allowed_rows: list[dict[str, Any]] = []
+        seen_keys: set[tuple[str, str, int]] = set()
+
         for candidate in checked_candidates:
-            rows = self.find_okpd2(candidate)
-            if rows:
-                return candidate, rows, checked_candidates
+            matched_rows: list[dict[str, Any]] = []
+
+            for row in self.find_okpd2(candidate) + self._find_okpd2_prefix_matches_in_allowed_appendices(candidate):
+                if not self._is_allowed_appendix(row):
+                    continue
+                row_key = (
+                    str(row.get("table_id") or ""),
+                    str(row.get("okpd2") or ""),
+                    int(row.get("row_index") or 0),
+                )
+                if row_key in seen_keys:
+                    continue
+                seen_keys.add(row_key)
+                allowed_rows.append(row)
+
+            for row in allowed_rows:
+                row_code = row.get("okpd2")
+                if not row_code:
+                    continue
+                if self._codes_overlap_by_parent(candidate, row_code):
+                    matched_rows.append(row)
+
+            if matched_rows:
+                return candidate, matched_rows, checked_candidates
 
         return None, [], checked_candidates
 
@@ -274,7 +386,7 @@ class ProcurementReferenceRegistry:
                 position=None,
                 row=None,
                 message=(
-                    f"Код {query_code} не найден в локальном справочнике ПП РФ № 1875.\n "
+                    f"Код {query_code} не найден в приложениях 1 и 2 локального справочника ПП РФ № 1875.\n "
                     f"Проверены префиксы: {checked_str}."
                 ),
             )
@@ -301,7 +413,7 @@ class ProcurementReferenceRegistry:
                     f"<ins>Обратите внимание</ins> на Код {query_code}.\n"
                     f'Родительский код {matched_code} <ins>Входит в перечень</ins> "{short_table_title}".\n'
                     f"Эталонное наименование: {reference_name}.\n"
-                    f"Проверьте соответствует ли ваше наименование '{name}'."
+                    f"Проверьте соответствует ли ваше наименование: '{name}'."
                     f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
                 )
         else:
@@ -315,17 +427,17 @@ class ProcurementReferenceRegistry:
                     f"<ins>Обратите внимание</ins> Код {query_code} <ins>Входит в перечень</ins> \n"
                     f"'{short_table_title}',\n"
                     f"<ins>но наименование отличается от эталонного.</ins>\n"
-                    f"<ins>Эталонное наименование:</ins> {reference_name}.\n"
-                    f"Проверьте соответствует ли ваше наименование '{name}'.\n"
+                    f"Эталонное наименование: {reference_name}.\n"
+                    f"Проверьте соответствует ли ваше наименование: '{name}'.\n"
                     f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
                      
                 )
             else:
                 message = (
-                    f"Код {query_code}\n"
-                    f'<ins>Обратите внимание</ins>, родительский код {matched_code} <ins>Входит в перечень</ins> "{short_table_title}".\n'
+                    f"<ins>Обратите внимание</ins> на Код {query_code}.\n"
+                    f'Родительский код {matched_code} <ins>Входит в перечень</ins> "{short_table_title}".\n'
                     f"Эталонное наименование: {reference_name}.\n"
-                    f"Проверьте соответствует ли ваше наименование '{name}'."
+                    f"Проверьте соответствует ли ваше наименование: '{name}'."
                     f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
                 )
 
@@ -505,6 +617,16 @@ class ProcurementReferenceRegistry:
 
         return "\n".join(lines)
 
+    @staticmethod
+    def _parse_russian_date(value: Optional[str]) -> Optional[date]:
+        if not value:
+            return None
+        cleaned = ProcurementReferenceRegistry.clean_text(value)
+        try:
+            return datetime.strptime(cleaned, "%d.%m.%Y").date()
+        except ValueError:
+            return None
+
     def _build_ktru_error_result(
         self,
         code: str,
@@ -551,6 +673,10 @@ class ProcurementReferenceRegistry:
 
         reference_name = common_info.get("name")
         short_description = common_info.get("short_description") or []
+        section_pairs = common_info.get("section_pairs") or {}
+        status = self.clean_text(section_pairs.get("Статус"))
+        exclusion_date_raw = section_pairs.get("Дата исключения позиции КТРУ")
+        exclusion_date = self._parse_russian_date(exclusion_date_raw)
 
         normalized_query_name = self.normalize_text(name)
         normalized_reference_name = self.normalize_text(reference_name)
@@ -565,7 +691,16 @@ class ProcurementReferenceRegistry:
             else 0.0
         )
 
-        if not reference_name:
+        if exclusion_date and exclusion_date <= date.today():
+            exclusion_date_text = exclusion_date.strftime("%d.%m.%Y")
+            status_suffix = f" Статус: {status}." if status else ""
+            message = (
+                f"<ins>Обратите внимание</ins>, КТРУ {code} исключено из каталога. "
+                f"Дата исключения: {exclusion_date_text}."
+                f"{status_suffix}"
+            )
+            found = False
+        elif not reference_name:
             message = f"КТРУ {code} найден, но наименование автоматически извлечь не удалось.\n"
             found = False
         elif not name:

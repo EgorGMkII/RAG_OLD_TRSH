@@ -17,7 +17,7 @@ def test_known_position_14_20(registry):
 
 
 def test_known_position_31_01_12(registry):
-    assert_has_code_and_name(registry, "31.01.12", "Мебель деревянная для офисов")
+    assert_has_code_and_name(registry, "31.01", "Мебель для офисов и предприятий торговли")
 
 
 def test_known_position_31_09_11(registry):
@@ -31,4 +31,4 @@ def test_known_position_31_09_11(registry):
 def test_known_position_found_in_expected_table_fragment(registry):
     res = registry.check_okpd2("31.01.12")
     assert res.found is True
-    assert "ПРИЛОЖЕНИЕ N 3" in (res.table_title or "")
+    assert "ПРИЛОЖЕНИЕ N 2" in (res.table_title or "")

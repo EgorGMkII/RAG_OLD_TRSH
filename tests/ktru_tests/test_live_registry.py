@@ -66,7 +66,7 @@ def test_check_ktru_not_found_message(
     assert res.ktru_code is None
     assert res.payload is None
     assert res.common_info_url is not None
-    assert res.message == f"Не удалось найти карточку КТРУ {ktru_code}"
+    assert res.message == f"Не удалось найти карточку КТРУ {ktru_code}\n"
 
 
 def test_check_ktru_without_name(
@@ -86,3 +86,30 @@ def test_check_ktru_without_name(
     assert res.reference_name == "Зерно ржи"
     assert res.okpd2_code == "01.11.32"
     assert "Наименование: Зерно ржи" in res.message
+
+
+@pytest.mark.parametrize(
+    "ktru_code",
+    [
+        "31.09.13.190-00000007",
+        "31.09.13.190-00000002",
+    ],
+)
+def test_check_ktru_excluded_from_catalog(
+    registry: ProcurementReferenceRegistry,
+    ktru_code: str,
+) -> None:
+    try:
+        res = registry.check_ktru(ktru_code)
+    except requests.RequestException as exc:
+        _skip_on_network_error(exc)
+        return
+
+    section_pairs = res.payload["section_pairs"]
+
+    assert res.found is False
+    assert res.exact_ktru_match is True
+    assert res.ktru_code == ktru_code
+    assert section_pairs.get("Дата исключения позиции КТРУ") == "23.11.2020"
+    assert "исключено из каталога" in res.message.lower()
+    assert "23.11.2020" in res.message
