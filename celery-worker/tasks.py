@@ -24,29 +24,45 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
     """
     Собирает docx-файл из текстового ответа модели.
 
-    Сейчас форматирование минимальное: `<b>...</b>` конвертируется в жирный
-    текст, а абзацы создаются по пустым строкам.
+    Поддерживает базовое форматирование:
+    `<b>...</b>` -> жирный, `<u>...</u>` и `<ins>...</ins>` -> подчёркивание.
+    Абзацы создаются по пустым строкам.
     """
     document = Document()
     document.add_heading('Результат проверки документов', level=1)
 
     clean_response = (ai_response or '').replace('\r\n', '\n')
     blocks = [block.strip() for block in clean_response.split('\n\n') if block.strip()]
-
-    bold_pattern = re.compile(r"<b>(.*?)</b>", re.IGNORECASE | re.DOTALL)
+    tag_pattern = re.compile(r"</?(?:b|u|ins)>", re.IGNORECASE)
 
     for block in blocks:
         paragraph = document.add_paragraph()
+        bold_active = False
+        underline_active = False
         cursor = 0
-        for match in bold_pattern.finditer(block):
+
+        for match in tag_pattern.finditer(block):
             if match.start() > cursor:
-                paragraph.add_run(block[cursor:match.start()])
-            run = paragraph.add_run(match.group(1))
-            run.bold = True
+                run = paragraph.add_run(block[cursor:match.start()])
+                run.bold = bold_active
+                run.underline = underline_active
+
+            tag = match.group(0).lower()
+            if tag == "<b>":
+                bold_active = True
+            elif tag == "</b>":
+                bold_active = False
+            elif tag in ("<u>", "<ins>"):
+                underline_active = True
+            elif tag in ("</u>", "</ins>"):
+                underline_active = False
+
             cursor = match.end()
 
         if cursor < len(block):
-            paragraph.add_run(block[cursor:])
+            run = paragraph.add_run(block[cursor:])
+            run.bold = bold_active
+            run.underline = underline_active
 
     buffer = BytesIO()
     document.save(buffer)
