@@ -2,7 +2,10 @@ import os
 import base64
 import tempfile
 import shutil
+from io import BytesIO
+import re
 from celery import shared_task
+from docx import Document
 from govno_model.ai_service import get_ai_service
 
 ai_service = get_ai_service()
@@ -15,6 +18,40 @@ REQUIRED_DOCUMENTS = (
     ("onmck", "ОНМЦК"),
     ("obrasheniye", "Обращение о проведении закупки"),
 )
+
+
+def build_result_docx_bytes(ai_response: str) -> bytes:
+    """
+    Собирает docx-файл из текстового ответа модели.
+
+    Сейчас форматирование минимальное: `<b>...</b>` конвертируется в жирный
+    текст, а абзацы создаются по пустым строкам.
+    """
+    document = Document()
+    document.add_heading('Результат проверки документов', level=1)
+
+    clean_response = (ai_response or '').replace('\r\n', '\n')
+    blocks = [block.strip() for block in clean_response.split('\n\n') if block.strip()]
+
+    bold_pattern = re.compile(r"<b>(.*?)</b>", re.IGNORECASE | re.DOTALL)
+
+    for block in blocks:
+        paragraph = document.add_paragraph()
+        cursor = 0
+        for match in bold_pattern.finditer(block):
+            if match.start() > cursor:
+                paragraph.add_run(block[cursor:match.start()])
+            run = paragraph.add_run(match.group(1))
+            run.bold = True
+            cursor = match.end()
+
+        if cursor < len(block):
+            paragraph.add_run(block[cursor:])
+
+    buffer = BytesIO()
+    document.save(buffer)
+    buffer.seek(0)
+    return buffer.getvalue()
 
 
 @shared_task(bind=True, name='rag_worker.process_document_query')
@@ -63,9 +100,12 @@ def process_document_query(self, documents):
                 ONMCK_path=doc_paths['onmck'],
                 Obrasheniye_path=doc_paths['obrasheniye'],
             )
+            result_file_bytes = build_result_docx_bytes(result['ai_response'])
 
             return {
                 'ai_response': result['ai_response'],
+                'result_file_b64': base64.b64encode(result_file_bytes).decode('utf-8'),
+                'result_file_name': 'analysis_result.docx',
                 'documents': [
                     {
                         'key': key,

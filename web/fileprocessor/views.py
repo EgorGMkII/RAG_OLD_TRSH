@@ -1,6 +1,8 @@
 import os
 import base64
+from io import BytesIO
 from django.shortcuts import render, redirect
+from django.http import FileResponse, HttpResponse
 from celery import Celery
 from celery.result import AsyncResult
 
@@ -88,6 +90,7 @@ def result(request):
             context['ai_response'] = data.get('ai_response', '')
             context['documents'] = data.get('documents', context['documents'])
             context['status'] = 'completed'
+            context['download_available'] = bool(data.get('result_file_b64'))
         else:
             context['error'] = str(result.info) if result.info else 'Unknown error occurred'
             context['status'] = 'failed'
@@ -96,5 +99,28 @@ def result(request):
     
     return render(request, 'fileprocessor/result.html', context)
 
+
+def download_result(request):
+    task_id = request.session.get('task_id')
+    if not task_id:
+        return redirect('fileprocessor:index')
+
+    result = AsyncResult(task_id, app=celery_app)
+    if not result.ready() or not result.successful():
+        return HttpResponse('Result file is not ready yet.', status=409)
+
+    data = result.get()
+    result_file_b64 = data.get('result_file_b64')
+    if not result_file_b64:
+        return HttpResponse('Result file is unavailable.', status=404)
+
+    file_name = data.get('result_file_name', 'analysis_result.docx')
+    file_bytes = base64.b64decode(result_file_b64)
+    return FileResponse(
+        BytesIO(file_bytes),
+        as_attachment=True,
+        filename=file_name,
+        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    )
 
 
