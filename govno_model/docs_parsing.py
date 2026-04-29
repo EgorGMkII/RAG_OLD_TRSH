@@ -1,12 +1,8 @@
-# _parse_plan_points(...)
-# _parse_contract_points(...)
-# _parse_ooz_points(...)
-# _parse_zapiska_text(...)
-# _parse_onmck_text(...)
-# _parse_obrasheniye_text(...)
+import numpy as np
 from typing import List
 from new_model.parser_functions import DocumentParser, PlanParser
 from new_model.parser_functions import extract_ktru_block, _clean_keyword_dict, _extract_keyword_windows
+from new_model.parser_functions import parse_contracters_onmck_by_row_number
 
 
 def _parse_plan_points(plan_path: str) -> List[str]:
@@ -95,3 +91,27 @@ def _parse_onmck_text(ONMCK_path: str) -> str:
         table_onmck = parser_onmck.extract_tables_columns(keywords=["наименование товара", "Ед.", "Единиц", "Кол-во", "Количество"])
     
     return table_onmck
+
+def _parse_onmck_pricies(ONMCK_path: str) -> str:
+    pricies = parse_contracters_onmck_by_row_number(ONMCK_path)
+    result = ""
+    errors = ""
+
+    name_width = max(len(k) for k in pricies)
+    var_width = 5
+    for k,v in pricies.items():
+        mu, std = np.mean(v), np.std(v)
+        var_coeff = np.round(100*std/(mu+1e-5))
+        result += (
+            f"\n{k:<{name_width}} | "
+            f"коэффициент вариации: {var_coeff:>{var_width}}% | "
+            f"Цены: {v}"
+        )
+
+        if var_coeff >= 33:
+            errors += (
+                f"\nкоэффициент вариации в 33% превышен | "
+                f"{k:<{name_width}} | Вариация цен поставщиков: {var_coeff}%"
+        )
+    result = result + "\n" + errors
+    return result

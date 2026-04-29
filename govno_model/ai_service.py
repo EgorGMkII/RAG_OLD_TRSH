@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, List
 from new_model.parser_functions import DocumentParser, PlanParser, parse_okpd_entries, parse_ktry_entries, _clean_keyword_dict, _extract_keyword_windows
 from new_model.retriever import Retriever, BM25TextRetriever
 
-from govno_model.docs_parsing import _parse_plan_points, _parse_contract_points, _parse_ooz_points, _parse_zapiska_text, _parse_onmck_text
+from govno_model.docs_parsing import _parse_plan_points, _parse_contract_points, _parse_ooz_points, _parse_zapiska_text, _parse_onmck_text, _parse_onmck_pricies
 from govno_model.rag_processing import process_rag_points
 from govno_model.smart_processing import process_smart_points
 from govno_model.check_registry import get_regestry_response_okpd_ktry
@@ -164,6 +164,15 @@ class AIService:
         except Exception as e:
             rag_answer = f"Не удалось сформулировать RAG-ответ. Ошибка: {e}"
 
+
+# -----------------------------------------------------------------------
+#                                ЦЕНЫ ОНМЦК
+# -----------------------------------------------------------------------
+        try:
+            price_check = _parse_onmck_pricies(ONMCK_path)
+        except Exception:
+            price_check = "Не удалось сравнить цены поставщиков в ОНМЦК"
+
 # -----------------------------------------------------------------------
 #                 Ответ: Проверка КТРУ и ОКПД + SMART + RAG
 # -----------------------------------------------------------------------
@@ -179,6 +188,8 @@ class AIService:
             + "\n\n"
             + "\n<b>3) Внутренний анализ перечня документов:</b>\n"
             + final_response
+            + "\n<b>4) Сравнение цен услуг поставщиков в ОНМЦК:</b>\n"
+            + price_check
         )
 
         final_response = highlight_error_labels(final_response)

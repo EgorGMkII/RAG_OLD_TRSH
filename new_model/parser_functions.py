@@ -78,6 +78,8 @@ def normalize_text(text: str) -> str:
     out = re.sub(r"[ \t\f\v]*\n[ \t\f\v]*", "\n", out)
     out = re.sub(r"[ \t]{2,}", " ", out)
     out = re.sub(r"\s*,\s*(?:,\s*)+", ", ", out)
+    out = re.sub(r"\s*;\s*(?:;\s*)+", "; ", out)
+    out = re.sub(r";+\s*$", "", out)
     return out.strip()
 
 
@@ -480,3 +482,159 @@ class DocumentParser:
                     if cells:
                         results[kw].append(", ".join(cells))
         return dict(results)
+
+
+def parce_contracters_onmck(ONMCK_path: str) -> Dict[str, List[str]]:
+    """
+    Достаёт из таблицы ОНМЦК цены поставщиков по каждому наименованию товара.
+
+    Возвращает словарь формата:
+        {
+            "Стол письменный": ["17 170,00", "14 586,42", "14 442,00"],
+            ...
+        }
+
+    Если одно и то же наименование встречается несколько раз, цены из всех строк
+    добавляются в один список в порядке следования по документу.
+    """
+    doc = Document(ONMCK_path)
+    parsed_prices: Dict[str, List[str]] = defaultdict(list)
+    print("num tables:", len(doc.tables))
+    for table in doc.tables:
+        
+        rows = [get_row_cells(row) for row in table.rows if len(dedupe_merged_cells(row)) > 1]
+        if not rows:
+            continue
+        
+        header, header_rows_count = build_table_header(rows)
+        if not header:
+            continue
+        
+        name_col_idx = next(
+            (
+                idx
+                for idx, cell in enumerate(header)
+                if "наименование" in cell.lower()
+            ),
+            None,
+        )
+
+        if name_col_idx is None:
+            continue
+
+        
+
+        supplier_price_indexes = [
+            idx
+            for idx, cell in enumerate(header)
+            if "поставщик" in cell.lower() and "цена за" in cell.lower()
+        ]
+        print(header)
+        print(supplier_price_indexes)
+        if not supplier_price_indexes:
+            continue
+
+        for row in rows[header_rows_count:]:
+            normalized_row = [normalize_text(cell) for cell in row]
+            if name_col_idx >= len(normalized_row):
+                continue
+
+            item_name = normalized_row[name_col_idx]
+            if not item_name or item_name.lower() == "итого:":
+                continue
+
+            prices = [
+                normalized_row[idx]
+                for idx in supplier_price_indexes
+                if idx < len(normalized_row) and normalized_row[idx]
+            ]
+            if prices:
+                parsed_prices[item_name].extend(prices)
+
+    return dict(parsed_prices)
+
+def parse_price(text: str) -> float:
+    text = normalize_text(text)
+    return float(text.replace(' ', '').replace(',', '.'))
+
+def parse_contracters_onmck_by_row_number(ONMCK_path: str) -> Dict[str, List[str]]:
+    """
+    Парсер ОНМЦК для таблиц с многострочным заголовком.
+
+    Начало строк с данными определяется по первому столбцу:
+    если там номер позиции вида 1, 1., 01, то это уже данные.
+    Все строки выше объединяются в заголовок по индексам колонок.
+    """
+    doc = Document(ONMCK_path)
+    parsed_prices: Dict[str, List[str]] = defaultdict(list)
+
+    for table in doc.tables:
+        rows: List[List[str]] = []
+        for row in table.rows:
+            normalized_row = [normalize_text(cell.text) for cell in row.cells]
+            if any(normalized_row):
+                rows.append(normalized_row)
+
+        if not rows:
+            continue
+
+        data_start_idx = next(
+            (
+                idx
+                for idx, row in enumerate(rows)
+                if row and row[0] and re.fullmatch(r"\d+\.?", row[0])
+            ),
+            None,
+        )
+        if data_start_idx is None or data_start_idx == 0:
+            continue
+
+        header_rows = rows[:data_start_idx]
+        width = max(len(row) for row in rows)
+        header: List[str] = []
+        for col_idx in range(width):
+            parts = []
+            for row in header_rows:
+                if col_idx >= len(row):
+                    continue
+                cell = row[col_idx]
+                if cell and cell not in parts:
+                    parts.append(cell)
+            header.append(" | ".join(parts))
+        # print(header)
+        name_col_idx = next(
+            (
+                idx
+                for idx, cell in enumerate(header)
+                if "наименование товара" in cell.lower() or cell.lower() == "наименование"
+            ),
+            None,
+        )
+        if name_col_idx is None:
+            continue
+
+        supplier_price_indexes = [
+            idx
+            for idx, cell in enumerate(header)
+            if "поставщик" in cell.lower() and "цена за ед" in cell.lower()
+        ]
+        # print(supplier_price_indexes)
+        if not supplier_price_indexes:
+            continue
+
+        for row in rows[data_start_idx:]:
+            if name_col_idx >= len(row):
+                continue
+
+            row_number = row[0] if row else ""
+            item_name = "№" + row_number + " " + normalize_text(row[name_col_idx])
+            if not item_name or item_name.lower() == "итого:" or row_number.lower() == "итого:":
+                continue
+
+            prices = [row[idx] for idx in supplier_price_indexes if idx < len(row) and row[idx]]
+            # print(prices)
+            if prices:
+                prices = [parse_price(price) for price in prices]
+                parsed_prices[item_name].extend(prices)
+
+    return dict(parsed_prices)
