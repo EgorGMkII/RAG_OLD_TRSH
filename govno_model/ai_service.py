@@ -22,6 +22,14 @@ def filter_plan_points(plan_points: List[str], keywords: List[str]) -> List[str]
     return plan_points_use
 
 
+def highlight_error_labels(text: str) -> str:
+    """
+    Помечает слово "Ошибки" служебным тегом для дальнейшей отрисовки красным
+    и в HTML, и в Word-документе.
+    """
+    return re.sub(r"(?i)(Ошибки:?)", r"<error>\1</error>", text)
+
+
 class AIService:
     def process_query(
         self,
@@ -173,6 +181,7 @@ class AIService:
             + final_response
         )
 
+        final_response = highlight_error_labels(final_response)
         return {"ai_response": final_response}
 
 

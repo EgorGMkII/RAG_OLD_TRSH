@@ -6,6 +6,7 @@ from io import BytesIO
 import re
 from celery import shared_task
 from docx import Document
+from docx.shared import RGBColor
 from govno_model.ai_service import get_ai_service
 
 ai_service = get_ai_service()
@@ -25,7 +26,8 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
     Собирает docx-файл из текстового ответа модели.
 
     Поддерживает базовое форматирование:
-    `<b>...</b>` -> жирный, `<u>...</u>` и `<ins>...</ins>` -> подчёркивание.
+    `<b>...</b>` -> жирный, `<u>...</u>` и `<ins>...</ins>` -> подчёркивание,
+    `<error>...</error>` -> красный текст.
     Абзацы создаются по пустым строкам.
     """
     document = Document()
@@ -33,12 +35,13 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
 
     clean_response = (ai_response or '').replace('\r\n', '\n')
     blocks = [block.strip() for block in clean_response.split('\n\n') if block.strip()]
-    tag_pattern = re.compile(r"</?(?:b|u|ins)>", re.IGNORECASE)
+    tag_pattern = re.compile(r"</?(?:b|u|ins|error)>", re.IGNORECASE)
 
     for block in blocks:
         paragraph = document.add_paragraph()
         bold_active = False
         underline_active = False
+        error_active = False
         cursor = 0
 
         for match in tag_pattern.finditer(block):
@@ -46,6 +49,8 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
                 run = paragraph.add_run(block[cursor:match.start()])
                 run.bold = bold_active
                 run.underline = underline_active
+                if error_active:
+                    run.font.color.rgb = RGBColor(0xDC, 0x35, 0x45)
 
             tag = match.group(0).lower()
             if tag == "<b>":
@@ -56,6 +61,10 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
                 underline_active = True
             elif tag in ("</u>", "</ins>"):
                 underline_active = False
+            elif tag == "<error>":
+                error_active = True
+            elif tag == "</error>":
+                error_active = False
 
             cursor = match.end()
 
@@ -63,6 +72,8 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
             run = paragraph.add_run(block[cursor:])
             run.bold = bold_active
             run.underline = underline_active
+            if error_active:
+                run.font.color.rgb = RGBColor(0xDC, 0x35, 0x45)
 
     buffer = BytesIO()
     document.save(buffer)
