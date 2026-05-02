@@ -107,15 +107,15 @@ def _parse_onmck_pricies(ONMCK_path: str) -> str:
     var_width = 5
     for k, v in pricies.items():
         mu, std = np.mean(v), np.std(v)
-        var_coeff = np.round(100 * std / (mu + 1e-5))
+        var_coeff = np.round((100 * std / (mu + 1e-5)), 2)
 
         if var_coeff >= 33:
             result = (
-                "<error>"
-                + f"{k:<{name_width}} | "
+                f"{k:<{name_width}} | "
+                + "<error>"
                 + f"коэффициент вариации: {var_coeff:>{var_width}}% | "
-                + f"Цены: {v}"
                 + "</error>"
+                + f"Цены: {v}"
             )
             error_lines.append(
                 "<error>"
@@ -125,11 +125,12 @@ def _parse_onmck_pricies(ONMCK_path: str) -> str:
             )
         else:
             result = (
-                "<ok>"
-                + f"{k:<{name_width}} | "
+                
+                f"{k:<{name_width}} | "
+                + "<ok>"
                 + f"коэффициент вариации: {var_coeff:>{var_width}}% | "
-                + f"Цены: {v}"
                 + "</ok>"
+                + f"Цены: {v}"
             )
 
         result_lines.append(result)
