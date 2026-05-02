@@ -13,6 +13,7 @@ def _parse_plan_points(plan_path: str) -> List[str]:
 
     return plan_points
 
+
 def _parse_contract_points(contract_path: str, window: int = 100) -> str:
     """
     Достаёт КТРУ и ОКПД из контракта
@@ -21,7 +22,7 @@ def _parse_contract_points(contract_path: str, window: int = 100) -> str:
     parser_contract = DocumentParser(contract_path)
     ktru_okpd = parser_contract.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
     contract_points = _clean_keyword_dict(ktru_okpd)
-    if not contract_points or len(contract_points)<20:
+    if not contract_points or len(contract_points) < 20:
         contract_plain_text = parser_contract.extract_clean_text().strip()
         contract_points = _extract_keyword_windows(
             contract_plain_text,
@@ -46,15 +47,16 @@ def _parse_contract_points(contract_path: str, window: int = 100) -> str:
 
     return contract_points
 
+
 def _parse_ooz_points(ooz_path: str, window: int = 200) -> str:
     parser_ooz = DocumentParser(ooz_path)
     tables_ooz = parser_ooz.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
     ooz_points = _clean_keyword_dict(tables_ooz)
-    if not ooz_points or len(ooz_points)<20:
+    if not ooz_points or len(ooz_points) < 20:
         ooz_plain_text = parser_ooz.extract_clean_text().strip()
         ooz_amounts = parser_ooz.extract_tables_columns(keywords=["№", "наименование товара", "количество"])
         ooz_ktry_okpd_table = parser_ooz.extract_tables_columns(keywords=["№", "ОКПД", "КТРУ"])
-        
+
         ooz_points = _extract_keyword_windows(
             ooz_plain_text,
             keywords=["ОКПД"],
@@ -73,6 +75,7 @@ def _parse_ooz_points(ooz_path: str, window: int = 200) -> str:
 
     return ooz_points
 
+
 def _parse_zapiska_text(zapiska_path: str) -> str:
     parser_zapiska = DocumentParser(zapiska_path)
     paragraphs_zapiska = parser_zapiska.extract_clean_text()
@@ -88,30 +91,48 @@ def _parse_onmck_text(ONMCK_path: str) -> str:
     parser_onmck = DocumentParser(ONMCK_path)
     table_onmck = parser_onmck.extract_rows_region(keyword="шт")
     if not table_onmck:
-        table_onmck = parser_onmck.extract_tables_columns(keywords=["наименование товара", "Ед.", "Единиц", "Кол-во", "Количество"])
-    
+        table_onmck = parser_onmck.extract_tables_columns(
+            keywords=["наименование товара", "Ед.", "Единиц", "Кол-во", "Количество"]
+        )
+
     return table_onmck
+
 
 def _parse_onmck_pricies(ONMCK_path: str) -> str:
     pricies = parse_contracters_onmck_by_row_number(ONMCK_path)
-    result = ""
-    errors = ""
+    result_lines = []
+    error_lines = []
 
     name_width = max(len(k) for k in pricies)
     var_width = 5
-    for k,v in pricies.items():
+    for k, v in pricies.items():
         mu, std = np.mean(v), np.std(v)
-        var_coeff = np.round(100*std/(mu+1e-5))
-        result += (
-            f"\n{k:<{name_width}} | "
-            f"коэффициент вариации: {var_coeff:>{var_width}}% | "
-            f"Цены: {v}"
-        )
+        var_coeff = np.round(100 * std / (mu + 1e-5))
 
         if var_coeff >= 33:
-            errors += (
-                f"\nкоэффициент вариации в 33% превышен | "
-                f"{k:<{name_width}} | Вариация цен поставщиков: {var_coeff}%"
-        )
-    result = result + "\n" + errors
-    return result
+            result = (
+                "<error>"
+                + f"{k:<{name_width}} | "
+                + f"коэффициент вариации: {var_coeff:>{var_width}}% | "
+                + f"Цены: {v}"
+                + "</error>"
+            )
+            error_lines.append(
+                "<error>"
+                + "Внимание! Коэффициент вариации в 33% превышен | "
+                + f"{k:<{name_width}} | Вариация цен поставщиков: {var_coeff}%"
+                + "</error>"
+            )
+        else:
+            result = (
+                "<ok>"
+                + f"{k:<{name_width}} | "
+                + f"коэффициент вариации: {var_coeff:>{var_width}}% | "
+                + f"Цены: {v}"
+                + "</ok>"
+            )
+
+        result_lines.append(result)
+
+
+    return "\n".join(result_lines + error_lines)

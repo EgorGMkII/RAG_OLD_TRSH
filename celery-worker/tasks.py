@@ -27,6 +27,7 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
 
     Поддерживает базовое форматирование:
     `<b>...</b>` -> жирный, `<u>...</u>` и `<ins>...</ins>` -> подчёркивание,
+    `<ok>...</ok>` -> зелёный текст, `<warn>...</warn>` -> оранжевый текст,
     `<error>...</error>` -> красный текст.
     Абзацы создаются по пустым строкам.
     """
@@ -35,12 +36,14 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
 
     clean_response = (ai_response or '').replace('\r\n', '\n')
     blocks = [block.strip() for block in clean_response.split('\n\n') if block.strip()]
-    tag_pattern = re.compile(r"</?(?:b|u|ins|error)>", re.IGNORECASE)
+    tag_pattern = re.compile(r"</?(?:b|u|ins|ok|warn|error)>", re.IGNORECASE)
 
     for block in blocks:
         paragraph = document.add_paragraph()
         bold_active = False
         underline_active = False
+        ok_active = False
+        warn_active = False
         error_active = False
         cursor = 0
 
@@ -49,7 +52,11 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
                 run = paragraph.add_run(block[cursor:match.start()])
                 run.bold = bold_active
                 run.underline = underline_active
-                if error_active:
+                if ok_active:
+                    run.font.color.rgb = RGBColor(0x19, 0x87, 0x54)
+                elif warn_active:
+                    run.font.color.rgb = RGBColor(0xFD, 0x7E, 0x14)
+                elif error_active:
                     run.font.color.rgb = RGBColor(0xDC, 0x35, 0x45)
 
             tag = match.group(0).lower()
@@ -61,6 +68,14 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
                 underline_active = True
             elif tag in ("</u>", "</ins>"):
                 underline_active = False
+            elif tag == "<ok>":
+                ok_active = True
+            elif tag == "</ok>":
+                ok_active = False
+            elif tag == "<warn>":
+                warn_active = True
+            elif tag == "</warn>":
+                warn_active = False
             elif tag == "<error>":
                 error_active = True
             elif tag == "</error>":
@@ -72,7 +87,11 @@ def build_result_docx_bytes(ai_response: str) -> bytes:
             run = paragraph.add_run(block[cursor:])
             run.bold = bold_active
             run.underline = underline_active
-            if error_active:
+            if ok_active:
+                run.font.color.rgb = RGBColor(0x19, 0x87, 0x54)
+            elif warn_active:
+                run.font.color.rgb = RGBColor(0xFD, 0x7E, 0x14)
+            elif error_active:
                 run.font.color.rgb = RGBColor(0xDC, 0x35, 0x45)
 
     buffer = BytesIO()

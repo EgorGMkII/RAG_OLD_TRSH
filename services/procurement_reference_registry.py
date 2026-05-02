@@ -404,14 +404,14 @@ class ProcurementReferenceRegistry:
         if not name:
             if exact_okpd_match:
                 message = (
-                    f"<ins>Обратите внимание</ins> Код {query_code} <ins>Входит в перечень</ins> '{short_table_title}'.\n"
+                    f"<warn><ins>Обратите внимание</ins> Код {query_code} <ins>Входит в перечень</ins></warn> '{short_table_title}'.\n"
                     f"Эталонное наименование: {reference_name}.\n"
                     f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
                 )
             else:
                 message = (
-                    f"<ins>Обратите внимание</ins> на Код {query_code}.\n"
-                    f'Родительский код {matched_code} <ins>Входит в перечень</ins> "{short_table_title}".\n'
+                    f"<warn><ins>Обратите внимание</ins> на Код {query_code}.\n"
+                    f'Родительский код {matched_code} <ins>Входит в перечень</ins></warn> "{short_table_title}".\n'
                     f"Эталонное наименование: {reference_name}.\n"
                     f"Проверьте соответствует ли ваше наименование: '{name}'."
                     f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
@@ -419,12 +419,12 @@ class ProcurementReferenceRegistry:
         else:
             if exact_okpd_match and (exact_name_match or normalized_name_match):
                 message = (
-                    f"<ins>Обратите внимание</ins> Код {query_code} <ins>Входит в перечень</ins> '{short_table_title}'.\n"
+                    f"<warn><ins>Обратите внимание</ins> Код {query_code} <ins>Входит в перечень</ins></warn> '{short_table_title}'.\n"
                     f"<ins>Необходимо учесть требования постановления при проведении закупки.</ins>"
                 )
             elif exact_okpd_match:
                 message = (
-                    f"<ins>Обратите внимание</ins> Код {query_code} <ins>Входит в перечень</ins> \n"
+                    f"<warn><ins>Обратите внимание</ins> Код {query_code} <ins>Входит в перечень</ins> </warn>\n"
                     f"'{short_table_title}',\n"
                     f"<ins>но наименование отличается от эталонного.</ins>\n"
                     f"Эталонное наименование: {reference_name}.\n"
@@ -434,7 +434,7 @@ class ProcurementReferenceRegistry:
                 )
             else:
                 message = (
-                    f"<ins>Обратите внимание</ins> на Код {query_code}.\n"
+                    f"<warn><ins>Обратите внимание</ins> на Код {query_code}.</warn>\n"
                     f'Родительский код {matched_code} <ins>Входит в перечень</ins> "{short_table_title}".\n'
                     f"Эталонное наименование: {reference_name}.\n"
                     f"Проверьте соответствует ли ваше наименование: '{name}'."
@@ -695,9 +695,10 @@ class ProcurementReferenceRegistry:
             exclusion_date_text = exclusion_date.strftime("%d.%m.%Y")
             status_suffix = f" Статус: {status}." if status else ""
             message = (
-                f"<ins>Обратите внимание</ins>, КТРУ {code} исключено из каталога. "
+                f"<warn><ins>Обратите внимание</ins>, КТРУ {code} исключено из каталога. "
                 f"Дата исключения: {exclusion_date_text}."
                 f"{status_suffix}"
+                f"</warn>"
             )
             found = False
         elif not reference_name:
@@ -722,10 +723,11 @@ class ProcurementReferenceRegistry:
             found = True
         else:
             message = (
-                f"КТРУ {code} найден, но наименование отличается от эталонного.\n\n"
+                f"<warn>КТРУ {code} найден, но наименование отличается от эталонного.\n\n"
                 f"Ссылка на карточку: {common_info.get('url')}\n\n"
                 f"Эталонное наименование: {reference_name}\n"
                 f"Проверьте соответствует ли ваше наименование '{name}'."
+                f"</warn>"
             )
             found = True
 
