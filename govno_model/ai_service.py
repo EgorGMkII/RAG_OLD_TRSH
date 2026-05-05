@@ -111,11 +111,11 @@ class AIService:
 # -----------------------------------------------------------------------
 #                         ПРОВЕРКА КТРУ ОКПД НА САЙТЕ
 # -----------------------------------------------------------------------
-        # try:
-        #     res_ktry, res_okpd = get_regestry_response_okpd_ktry(plan_points_use, REGISTRY_DIR)
-        # except Exception as e:
-        #     res_ktry, res_okpd = [f"Ошибка проверки КТРУ: {e}"], [f"Ошибка проверки ОКПД: {e}"]
-        res_ktry, res_okpd = "бе", "ме"
+        try:
+            res_ktry, res_okpd = get_regestry_response_okpd_ktry(plan_points_use, REGISTRY_DIR)
+        except Exception as e:
+            res_ktry, res_okpd = [f"Ошибка проверки КТРУ: {e}"], [f"Ошибка проверки ОКПД: {e}"]
+        # res_ktry, res_okpd = "бе", "ме"
         ktry_check_result = "\n-----------------------------------------------------------------------\n".join(res_ktry)
         okpd_check_result = "\n-----------------------------------------------------------------------\n".join(res_okpd)   
 # -----------------------------------------------------------------------
