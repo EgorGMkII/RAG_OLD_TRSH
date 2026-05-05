@@ -33,9 +33,10 @@ def highlight_error_labels(text: str) -> str:
     def _store_ok_block(match: re.Match) -> str:
         ok_blocks.append(f"<ok>{match.group(1)}</ok>")
         return f"{ok_placeholder}{len(ok_blocks) - 1}__"
-
+    
+# \n\n<b><error>Ошибки:</error></b>\n- не обнаружены\n\n<b>
     text = re.sub(
-        r"(?im)(Ошибки:\s*\n-\s*не обнаружены)",
+        r"(?im)(<b>Ошибки:</b>\s*\n-\s*не обнаружены)",
         _store_ok_block,
         text,
     )
