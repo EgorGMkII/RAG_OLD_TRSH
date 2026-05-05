@@ -27,7 +27,24 @@ def highlight_error_labels(text: str) -> str:
     Помечает слово "Ошибки" служебным тегом для дальнейшей отрисовки красным
     и в HTML, и в Word-документе.
     """
-    return re.sub(r"(?i)(Ошибки:?)", r"<error>\1</error>", text)
+    ok_placeholder = "__OK_NO_ERRORS_BLOCK__"
+    ok_blocks = []
+
+    def _store_ok_block(match: re.Match) -> str:
+        ok_blocks.append(f"<ok>{match.group(1)}</ok>")
+        return f"{ok_placeholder}{len(ok_blocks) - 1}__"
+
+    text = re.sub(
+        r"(?im)(Ошибки:\s*\n-\s*не обнаружены)",
+        _store_ok_block,
+        text,
+    )
+    text = re.sub(r"(?i)(Ошибки:?)", r"<error>\1</error>", text)
+
+    for idx, ok_block in enumerate(ok_blocks):
+        text = text.replace(f"{ok_placeholder}{idx}__", ok_block)
+
+    return text
 
 
 class AIService:
@@ -94,11 +111,11 @@ class AIService:
 # -----------------------------------------------------------------------
 #                         ПРОВЕРКА КТРУ ОКПД НА САЙТЕ
 # -----------------------------------------------------------------------
-        try:
-            res_ktry, res_okpd = get_regestry_response_okpd_ktry(plan_points_use, REGISTRY_DIR)
-        except Exception as e:
-            res_ktry, res_okpd = [f"Ошибка проверки КТРУ: {e}"], [f"Ошибка проверки ОКПД: {e}"]
-        # res_ktry, res_okpd = "бе", "ме"
+        # try:
+        #     res_ktry, res_okpd = get_regestry_response_okpd_ktry(plan_points_use, REGISTRY_DIR)
+        # except Exception as e:
+        #     res_ktry, res_okpd = [f"Ошибка проверки КТРУ: {e}"], [f"Ошибка проверки ОКПД: {e}"]
+        res_ktry, res_okpd = "бе", "ме"
         ktry_check_result = "\n-----------------------------------------------------------------------\n".join(res_ktry)
         okpd_check_result = "\n-----------------------------------------------------------------------\n".join(res_okpd)   
 # -----------------------------------------------------------------------
