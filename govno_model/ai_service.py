@@ -2,15 +2,8 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from new_model.parser_functions import (
-    BM25TextRetriever,
-    DocumentParser,
-    PlanParser,
-    _clean_keyword_dict,
-    _extract_keyword_windows,
-    parse_ktry_entries,
-    parse_okpd_entries,
-)
+from new_model.parser_functions import DocumentParser, PlanParser, parse_okpd_entries, parse_ktry_entries, _clean_keyword_dict, _extract_keyword_windows
+from new_model.retriever import Retriever, BM25TextRetriever
 from new_model.retriever import Retriever
 
 from govno_model.check_registry import compare_characteristics, get_regestry_response_okpd_ktry
