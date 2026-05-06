@@ -1,17 +1,34 @@
-import re
+﻿import re
 from pathlib import Path
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, List, Optional
 
-from new_model.parser_functions import DocumentParser, PlanParser, parse_okpd_entries, parse_ktry_entries, _clean_keyword_dict, _extract_keyword_windows
-from new_model.retriever import Retriever, BM25TextRetriever
+from new_model.parser_functions import (
+    BM25TextRetriever,
+    DocumentParser,
+    PlanParser,
+    _clean_keyword_dict,
+    _extract_keyword_windows,
+    parse_ktry_entries,
+    parse_okpd_entries,
+)
+from new_model.retriever import Retriever
 
-from govno_model.docs_parsing import _parse_plan_points, _parse_contract_points, _parse_ooz_points, _parse_zapiska_text, _parse_onmck_text, _parse_onmck_pricies
+from govno_model.check_registry import compare_characteristics, get_regestry_response_okpd_ktry
+from govno_model.docs_parsing import (
+    _parse_contract_characteristics,
+    _parse_contract_points,
+    _parse_ooz_points,
+    _parse_onmck_pricies,
+    _parse_onmck_text,
+    _parse_plan_points,
+    _parse_zapiska_text,
+)
 from govno_model.rag_processing import process_rag_points
 from govno_model.smart_processing import process_smart_points
-from govno_model.check_registry import get_regestry_response_okpd_ktry
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_DIR = BASE_DIR / "data" / "parsed_tables"
+
 
 def filter_plan_points(plan_points: List[str], keywords: List[str]) -> List[str]:
     plan_points_use = [
@@ -33,8 +50,7 @@ def highlight_error_labels(text: str) -> str:
     def _store_ok_block(match: re.Match) -> str:
         ok_blocks.append(f"<ok>{match.group(1)}</ok>")
         return f"{ok_placeholder}{len(ok_blocks) - 1}__"
-    
-# \n\n<b><error>Ошибки:</error></b>\n- не обнаружены\n\n<b>
+
     text = re.sub(
         r"(?im)(<b>Ошибки:</b>\s*\n-\s*не обнаружены)",
         _store_ok_block,
@@ -58,7 +74,6 @@ class AIService:
         ONMCK_path: str,
         Obrasheniye_path: str,
     ) -> Dict[str, Any]:
-        
         # -----------------------------------------------------------------------
         #                               ПЛАН-ГРАФИК
         # -----------------------------------------------------------------------
@@ -84,6 +99,7 @@ class AIService:
             plan_points_str = "В плане-графике отсутствуют ОКПД, КТРУ или количество"
 
         plan_points_rag = filter_plan_points(plan_points, rag_keywords)
+
         # -----------------------------------------------------------------------
         #            ПУНКТЫ КОНТРАКТА, ООЗ, ЗАПИСКИ, ОНМЦК
         # -----------------------------------------------------------------------
@@ -107,21 +123,20 @@ class AIService:
         except Exception as e:
             ONMCK_points = f"Ошибка при парсинге ОНМЦК: {str(e)}"
 
-        
-
-# -----------------------------------------------------------------------
-#                         ПРОВЕРКА КТРУ ОКПД НА САЙТЕ
-# -----------------------------------------------------------------------
+        # -----------------------------------------------------------------------
+        #                 ПРОВЕРКА КТРУ И ОКПД НА САЙТЕ
+        # -----------------------------------------------------------------------
         try:
             res_ktry, res_okpd = get_regestry_response_okpd_ktry(plan_points_use, REGISTRY_DIR)
         except Exception as e:
             res_ktry, res_okpd = [f"Ошибка проверки КТРУ: {e}"], [f"Ошибка проверки ОКПД: {e}"]
-        # res_ktry, res_okpd = "бе", "ме"
+
         ktry_check_result = "\n-----------------------------------------------------------------------\n".join(res_ktry)
-        okpd_check_result = "\n-----------------------------------------------------------------------\n".join(res_okpd)   
-# -----------------------------------------------------------------------
-#                              КТРУ ОКПД часть
-# -----------------------------------------------------------------------
+        okpd_check_result = "\n-----------------------------------------------------------------------\n".join(res_okpd)
+
+        # -----------------------------------------------------------------------
+        #                     КТРУ + ОКПД + количество
+        # -----------------------------------------------------------------------
         try:
             smart_answer = process_smart_points(
                 plan_points=plan_points_str,
@@ -133,9 +148,43 @@ class AIService:
         except Exception as e:
             smart_answer = f"Не удалось сформулировать ответ по КТРУ и ОКПД. Ошибка {e}"
 
-# -----------------------------------------------------------------------
-#                                 RAG часть
-# -----------------------------------------------------------------------
+        # -----------------------------------------------------------------------
+        #               ПРОВЕРКА ХАРАКТЕРИСТИК НА САЙТЕ
+        # -----------------------------------------------------------------------
+        try:
+            characteristics_compare_result = compare_characteristics(contract_path, REGISTRY_DIR)
+            if isinstance(characteristics_compare_result, dict):
+                if "error" in characteristics_compare_result:
+                    characteristics_compare_result = (
+                        "<error>" + str(characteristics_compare_result["error"]) + "</error>"
+                    )
+                else:
+                    rendered_blocks = []
+                    for code, payload in characteristics_compare_result.items():
+                        if isinstance(payload, str):
+                            if payload.strip().lower() == "всё ок":
+                                rendered_blocks.append(f"<ok>{code}: всё ок</ok>")
+                            else:
+                                rendered_blocks.append(f"<error>{code}: {payload}</error>")
+                        elif isinstance(payload, dict):
+                            block_lines = [f"<error>{code}:</error>"]
+                            for field_name, message in payload.items():
+                                block_lines.append(f"<error>- {field_name}: {message}</error>")
+                            rendered_blocks.append("\n".join(block_lines))
+                        else:
+                            rendered_blocks.append(str(payload))
+
+                    characteristics_compare_result = "\n\n".join(rendered_blocks)
+            else:
+                characteristics_compare_result = str(characteristics_compare_result)
+        except Exception as e:
+            characteristics_compare_result = (
+                f"<error>Не удалось сравнить характеристики контракта с КТРУ на сайте. Ошибка: {e}</error>"
+            )
+
+        # -----------------------------------------------------------------------
+        #                                 RAG часть
+        # -----------------------------------------------------------------------
         parser_contract = DocumentParser(contract_path)
         parser_ooz = DocumentParser(ooz_path)
         parser_onmck = DocumentParser(ONMCK_path)
@@ -174,26 +223,37 @@ class AIService:
             if plan_points_rag:
                 bm25 = BM25TextRetriever()
                 retriever = bm25.create_retriever(
-                    texts=[contract_full_text, zapiska_points, ooz_plain_text, onmck_plain_text, Obrasheniye_full_text],
+                    texts=[
+                        contract_full_text,
+                        zapiska_points,
+                        ooz_plain_text,
+                        onmck_plain_text,
+                        Obrasheniye_full_text,
+                    ],
                     n=7,
-                    sources = ["Проект контракта", "Пояснительная записка", "ООЗ", "ОНМЦК", "Обращение о проведении закупки"]
+                    sources=[
+                        "Проект контракта",
+                        "Пояснительная записка",
+                        "ООЗ",
+                        "ОНМЦК",
+                        "Обращение о проведении закупки",
+                    ],
                 )
                 rag_answer = process_rag_points(retriever, plan_points_rag)
         except Exception as e:
             rag_answer = f"Не удалось сформулировать RAG-ответ. Ошибка: {e}"
 
-
-# -----------------------------------------------------------------------
-#                                ЦЕНЫ ОНМЦК
-# -----------------------------------------------------------------------
+        # -----------------------------------------------------------------------
+        #                                ЦЕНЫ ОНМЦК
+        # -----------------------------------------------------------------------
         try:
             price_check = _parse_onmck_pricies(ONMCK_path)
         except Exception:
             price_check = "Не удалось сравнить цены поставщиков в ОНМЦК"
 
-# -----------------------------------------------------------------------
-#                 Ответ: Проверка КТРУ и ОКПД + SMART + RAG
-# -----------------------------------------------------------------------
+        # -----------------------------------------------------------------------
+        #                 Ответ: проверка КТРУ и ОКПД + SMART + RAG
+        # -----------------------------------------------------------------------
         final_parts = [part for part in [smart_answer, rag_answer] if part]
         final_response = "\n\n".join(final_parts)
 
@@ -206,7 +266,9 @@ class AIService:
             + "\n\n"
             + "\n<b>3) Внутренний анализ перечня документов:</b>\n"
             + final_response
-            + "\n<b>4) Сравнение цен услуг поставщиков в ОНМЦК:</b>\n"
+            + "\n\n<b>4) Сравнение характеристик контракта с КТРУ на сайте:</b>\n\n"
+            + characteristics_compare_result
+            + "\n\n<b>5) Сравнение цен услуг поставщиков в ОНМЦК:</b>\n"
             + price_check
         )
 

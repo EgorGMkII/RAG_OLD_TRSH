@@ -387,7 +387,56 @@ class DocumentParser:
             md_tables.append(md)
 
         return "\n\n".join(md_tables)
+    
+    def extract_tables_characteristics(self, keywords: List[str]) -> dict:
+        """
+        Находит в таблицах колонки, чьи заголовки содержат ключевые слова, и возвращает словарь
 
+        >>> Пример:
+            {
+                "22.11.11.000-00000007": {"Категория использования шины": "Обычная "...},
+            }
+        """
+        extracted_rows = []
+        keyword_lower = [kw.lower() for kw in keywords]
+
+        for table in self.doc.tables:
+            rows = [get_row_cells(row) for row in table.rows if len(dedupe_merged_cells(row))>1]
+            # print(rows)
+            if not rows:
+                continue
+
+            header, header_rows_count = build_table_header(rows)
+            selected_indexes = [
+                idx for idx, cell in enumerate(header)
+                if any(kw in cell.lower() for kw in keyword_lower)
+            ]
+            if not selected_indexes:
+                continue
+            
+            result = {}
+            codes = []
+            i=0
+            for row in rows[header_rows_count:]:
+                
+                normalized_row = [normalize_text(cell) for cell in row]
+                selected_cells = [
+                    normalized_row[idx]
+                    for idx in selected_indexes
+                    if idx < len(normalized_row) and normalized_row[idx]
+                ]
+                assert len(selected_cells) == len(keywords), f"Не нашёл все колонки {keywords}"
+                num  = selected_cells[0]
+                code = f"№{num}. " + selected_cells[1].split()[0]
+                name = selected_cells[2]
+                val  = selected_cells[3]
+                codes.append(code)
+                # print(selected_cells)
+                if any(selected_cells):
+                    result.setdefault(code, {}).update({name: val})
+
+        return result, set(codes)
+    
     def extract_tables_columns(self, keywords: List[str]) -> str:
         """
         Находит в таблицах колонки, чьи заголовки содержат ключевые слова, и возвращает их построчно.

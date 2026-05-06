@@ -13,6 +13,17 @@ def _parse_plan_points(plan_path: str) -> List[str]:
 
     return plan_points
 
+def _parse_contract_characteristics(contract_path: str) -> str:
+    """
+    Достаёт Характреристики товаров из Контракта
+    """
+    parser_contract = DocumentParser(contract_path)
+
+    table_ktry_names = parser_contract.extract_tables_columns(keywords=["№", "ОКПД", "КТРУ"])
+
+    table_characteristics, ktry_codes = parser_contract.extract_tables_characteristics(keywords=["№", "КТРУ", "Наименование характеристики", "Значение характеристики"])
+
+    return table_ktry_names, table_characteristics, ktry_codes
 
 def _parse_contract_points(contract_path: str, window: int = 100) -> str:
     """

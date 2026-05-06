@@ -546,6 +546,181 @@ class ProcurementReferenceRegistry:
 
         return result
 
+    def _split_characteristic_values(self, raw_value: Optional[str]) -> list[str]:
+        text = self.clean_text(raw_value)
+        if not text:
+            return []
+
+        values = [part.strip() for part in re.split(r"\s*[;\n\r]+\s*", text) if part.strip()]
+        if len(values) == 1 and text.count(",") >= 1:
+            comma_parts = [part.strip() for part in text.split(",") if part.strip()]
+            if len(comma_parts) > 1 and all(len(part) <= 120 for part in comma_parts):
+                values = comma_parts
+
+        unique_values: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            normalized = self.normalize_text(value)
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            unique_values.append(value)
+
+        return unique_values
+
+    def _extract_cell_text(self, cell: Any) -> str:
+        parts: list[str] = []
+        for fragment in cell.stripped_strings:
+            text = self.clean_text(fragment)
+            if text:
+                parts.append(text)
+        return "; ".join(parts)
+
+    def _extract_characteristic_name_cell_text(self, cell: Any) -> str:
+        first_div = cell.find("div", recursive=False)
+        if first_div is not None:
+            text = self.clean_text(first_div.get_text(" ", strip=True))
+            if text:
+                return text
+        return self._extract_cell_text(cell)
+
+    def _append_characteristic(
+        self,
+        result: dict[str, list[str]],
+        name: Optional[str],
+        raw_value: Optional[str],
+    ) -> None:
+        characteristic_name = self.clean_text(name)
+        if not characteristic_name:
+            return
+
+        name_normalized = self.normalize_text(characteristic_name)
+        if any(
+            marker in name_normalized
+            for marker in (
+                "наименование характеристики",
+                "значение характеристики",
+                "характеристики товара",
+            )
+        ):
+            return
+
+        values = self._split_characteristic_values(raw_value)
+        if not values:
+            return
+
+        bucket = result.setdefault(characteristic_name, [])
+        seen = {self.normalize_text(item) for item in bucket}
+        for value in values:
+            normalized_value = self.normalize_text(value)
+            if not normalized_value or normalized_value in seen:
+                continue
+            seen.add(normalized_value)
+            bucket.append(value)
+
+    def _extract_characteristics_from_tables(self, soup: BeautifulSoup) -> dict[str, list[str]]:
+        result: dict[str, list[str]] = {}
+
+        for table in soup.select("table"):
+            rows = table.select("tr")
+            if not rows:
+                continue
+
+            header_cells = rows[0].find_all(["th", "td"])
+            header_texts = [self.clean_text(cell.get_text(" ", strip=True)) for cell in header_cells]
+            normalized_headers = [self.normalize_text(text) for text in header_texts]
+
+            name_idx: Optional[int] = None
+            value_idx: Optional[int] = None
+
+            for idx, header in enumerate(normalized_headers):
+                if name_idx is None and (
+                    "наименование характеристики" in header
+                    or header == "характеристика"
+                    or (header.startswith("наименование") and "характерист" in header)
+                ):
+                    name_idx = idx
+                if value_idx is None and (
+                    "значение характеристики" in header
+                    or header == "значение"
+                    or header.endswith("значения")
+                ):
+                    value_idx = idx
+
+            data_rows = rows[1:] if any(normalized_headers) else rows
+
+            if name_idx is None and value_idx is None:
+                for row in data_rows:
+                    cells = row.find_all(["th", "td"])
+                    if len(cells) < 2:
+                        continue
+                    self._append_characteristic(
+                        result=result,
+                        name=self._extract_cell_text(cells[0]),
+                        raw_value=self._extract_cell_text(cells[-1]),
+                    )
+                continue
+
+            if name_idx is None:
+                name_idx = 0
+            if value_idx is None:
+                value_idx = 1 if len(header_texts) > 1 else 0
+
+            for row in data_rows:
+                cells = row.find_all(["th", "td"])
+                if len(cells) <= max(name_idx, value_idx):
+                    continue
+
+                self._append_characteristic(
+                    result=result,
+                    name=self._extract_cell_text(cells[name_idx]),
+                    raw_value=self._extract_cell_text(cells[value_idx]),
+                )
+
+        return result
+
+    def _extract_characteristics_from_ktru_description_table(
+        self,
+        soup: BeautifulSoup,
+    ) -> dict[str, list[str]]:
+        result: dict[str, list[str]] = {}
+        table = soup.select_one("#ktruCharacteristicContent table.blockInfo__table")
+        if table is None:
+            return result
+
+        current_name: Optional[str] = None
+
+        for row in table.select("tbody tr"):
+            cells = row.find_all("td", recursive=False)
+            if not cells:
+                continue
+
+            if len(cells) >= 3:
+                current_name = self._extract_characteristic_name_cell_text(cells[0])
+                value_cell = cells[1]
+            elif len(cells) == 2:
+                value_cell = cells[0]
+            else:
+                continue
+
+            if not current_name:
+                continue
+
+            self._append_characteristic(
+                result=result,
+                name=current_name,
+                raw_value=self._extract_cell_text(value_cell),
+            )
+
+        return result
+
+    def parse_ktru_characteristics_html(self, html: str) -> dict[str, list[str]]:
+        soup = BeautifulSoup(html, "html.parser")
+        parsed = self._extract_characteristics_from_ktru_description_table(soup)
+        if parsed:
+            return parsed
+        return self._extract_characteristics_from_tables(soup)
+
     def parse_ktru_common_info_html(self, html: str, ktru_code: str) -> dict[str, Any]:
         soup = BeautifulSoup(html, "html.parser")
 
@@ -599,6 +774,12 @@ class ProcurementReferenceRegistry:
         parsed["url"] = url
         parsed["html"] = html
         return parsed
+
+    def get_ktru_characteristics(self, ktru_code: str) -> dict[str, list[str]]:
+        code = self.normalize_ktru(ktru_code)
+        url = self._build_ktru_url("ktru-description", code)
+        html = self._fetch_html(url)
+        return self.parse_ktru_characteristics_html(html)
 
     def get_ktru_short_description(self, ktru_code: str) -> str:
         payload = self.get_ktru_common_info(ktru_code)
