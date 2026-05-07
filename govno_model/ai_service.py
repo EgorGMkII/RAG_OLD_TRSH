@@ -145,7 +145,7 @@ class AIService:
         #               ПРОВЕРКА ХАРАКТЕРИСТИК НА САЙТЕ
         # -----------------------------------------------------------------------
         try:
-            characteristics_compare_result = compare_characteristics(contract_path, REGISTRY_DIR)
+            characteristics_compare_result = compare_characteristics(ooz_path, REGISTRY_DIR)
             if isinstance(characteristics_compare_result, dict):
                 if "error" in characteristics_compare_result:
                     characteristics_compare_result = (

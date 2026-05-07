@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from bs4 import BeautifulSoup
+
 from services.procurement_reference_registry import ProcurementReferenceRegistry
 
 
@@ -194,4 +196,60 @@ def test_parse_ktru_characteristics_html_ktru_table_with_rowspan(
     assert payload == {
         "Длина волны, нм": ["850", "1310", "1550"],
         "Интерфейс": ["SFP", "XFP"],
+    }
+
+
+def test_extract_detailed_ktru_characteristics_with_required_flags(
+    registry: ProcurementReferenceRegistry,
+) -> None:
+    html = """
+    <html>
+      <body>
+        <div id="ktruCharacteristicContent">
+          <table class="blockInfo__table tableBlock grayBorderBottom mt-0">
+            <tbody class="tableBlock__body">
+              <tr class="tableBlock__row">
+                <td class="tableBlock__col tableBlock__col_first" rowspan="2">
+                  <div>Длина волны, нм</div>
+                  <div class="revert">(характеристика не является обязательной для применения)</div>
+                </td>
+                <td class="tableBlock__col">850</td>
+                <td class="tableBlock__col"></td>
+              </tr>
+              <tr class="tableBlock__row">
+                <td class="tableBlock__col">1310</td>
+                <td class="tableBlock__col"></td>
+              </tr>
+              <tr class="tableBlock__row">
+                <td class="tableBlock__col tableBlock__col_first" rowspan="2">
+                  <div>Интерфейс</div>
+                  <div class="revert">(характеристика является обязательной для применения)</div>
+                </td>
+                <td class="tableBlock__col tableBlock__col_last">SFP</td>
+                <td class="tableBlock__col"></td>
+              </tr>
+              <tr class="tableBlock__row">
+                <td class="tableBlock__col tableBlock__col_last">XFP</td>
+                <td class="tableBlock__col"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </body>
+    </html>
+    """
+
+    payload = registry._extract_detailed_characteristics_from_ktru_description_table(
+        BeautifulSoup(html, "html.parser")
+    )
+
+    assert payload == {
+        "Длина волны, нм": {
+            "values": ["850", "1310"],
+            "required": False,
+        },
+        "Интерфейс": {
+            "values": ["SFP", "XFP"],
+            "required": True,
+        },
     }

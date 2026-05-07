@@ -683,12 +683,33 @@ class ProcurementReferenceRegistry:
         self,
         soup: BeautifulSoup,
     ) -> dict[str, list[str]]:
+        detailed = self._extract_detailed_characteristics_from_ktru_description_table(soup)
         result: dict[str, list[str]] = {}
+        for name, payload in detailed.items():
+            result[name] = list(payload.get("values") or [])
+        return result
+
+    def _extract_characteristic_required_flag(self, cell: Any) -> Optional[bool]:
+        marker = cell.select_one(".revert")
+        marker_text = self._extract_cell_text(marker) if marker is not None else self._extract_cell_text(cell)
+        normalized = self.normalize_text(marker_text)
+        if "не является обязательной" in normalized:
+            return False
+        if "является обязательной" in normalized:
+            return True
+        return None
+
+    def _extract_detailed_characteristics_from_ktru_description_table(
+        self,
+        soup: BeautifulSoup,
+    ) -> dict[str, dict[str, Any]]:
+        result: dict[str, dict[str, Any]] = {}
         table = soup.select_one("#ktruCharacteristicContent table.blockInfo__table")
         if table is None:
             return result
 
         current_name: Optional[str] = None
+        current_required: Optional[bool] = None
 
         for row in table.select("tbody tr"):
             cells = row.find_all("td", recursive=False)
@@ -697,6 +718,7 @@ class ProcurementReferenceRegistry:
 
             if len(cells) >= 3:
                 current_name = self._extract_characteristic_name_cell_text(cells[0])
+                current_required = self._extract_characteristic_required_flag(cells[0])
                 value_cell = cells[1]
             elif len(cells) == 2:
                 value_cell = cells[0]
@@ -706,11 +728,26 @@ class ProcurementReferenceRegistry:
             if not current_name:
                 continue
 
-            self._append_characteristic(
-                result=result,
-                name=current_name,
-                raw_value=self._extract_cell_text(value_cell),
+            item = result.setdefault(
+                current_name,
+                {
+                    "values": [],
+                    "required": bool(current_required),
+                },
             )
+            if current_required is True:
+                item["required"] = True
+
+            raw_value = self._extract_cell_text(value_cell)
+            values = item["values"]
+            before = len(values)
+            self._append_characteristic(
+                result={current_name: values},
+                name=current_name,
+                raw_value=raw_value,
+            )
+            if len(values) == before and not values and raw_value:
+                values.append(raw_value)
 
         return result
 
@@ -775,11 +812,31 @@ class ProcurementReferenceRegistry:
         parsed["html"] = html
         return parsed
 
-    def get_ktru_characteristics(self, ktru_code: str) -> dict[str, list[str]]:
+    def get_ktru_characteristics_detailed(self, ktru_code: str) -> dict[str, dict[str, Any]]:
         code = self.normalize_ktru(ktru_code)
         url = self._build_ktru_url("ktru-description", code)
         html = self._fetch_html(url)
-        return self.parse_ktru_characteristics_html(html)
+        soup = BeautifulSoup(html, "html.parser")
+
+        parsed = self._extract_detailed_characteristics_from_ktru_description_table(soup)
+        if parsed:
+            return parsed
+
+        fallback = self._extract_characteristics_from_tables(soup)
+        return {
+            name: {
+                "values": list(values),
+                "required": False,
+            }
+            for name, values in fallback.items()
+        }
+
+    def get_ktru_characteristics(self, ktru_code: str) -> dict[str, list[str]]:
+        parsed = self.get_ktru_characteristics_detailed(ktru_code)
+        return {
+            name: list(payload.get("values") or [])
+            for name, payload in parsed.items()
+        }
 
     def get_ktru_short_description(self, ktru_code: str) -> str:
         payload = self.get_ktru_common_info(ktru_code)

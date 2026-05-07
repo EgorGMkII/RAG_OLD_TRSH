@@ -168,10 +168,14 @@ def compare_characteristics(contract_path: str, REGISTRY_DIR: Path) -> dict[str,
 
         return False
 
-    def _build_legal_lookup(legal_characteristics: dict[str, list[str]]) -> dict[str, tuple[str, list[str]]]:
-        lookup: dict[str, tuple[str, list[str]]] = {}
-        for name, values in legal_characteristics.items():
-            lookup[_normalize_text(name)] = (name, values)
+    def _build_legal_lookup(
+        legal_characteristics: dict[str, dict[str, Any]],
+    ) -> dict[str, tuple[str, list[str], bool]]:
+        lookup: dict[str, tuple[str, list[str], bool]] = {}
+        for name, payload in legal_characteristics.items():
+            values = list(payload.get("values") or [])
+            required = bool(payload.get("required"))
+            lookup[_normalize_text(name)] = (name, values, required)
         return lookup
 
     try:
@@ -200,7 +204,7 @@ def compare_characteristics(contract_path: str, REGISTRY_DIR: Path) -> dict[str,
             }
 
         try:
-            legal_characteristics = registry.get_ktru_characteristics(clean_code)
+            legal_characteristics = registry.get_ktru_characteristics_detailed(clean_code)
         except Exception as e:
             result[code] = f"Не удалось получить характеристики КТРУ с сайта. Ошибка: {e}"
             continue
@@ -212,6 +216,7 @@ def compare_characteristics(contract_path: str, REGISTRY_DIR: Path) -> dict[str,
 
         legal_lookup = _build_legal_lookup(legal_characteristics)
         field_errors: dict[str, str] = {}
+        present_names = {_normalize_text(name) for name in our_characteristics}
 
         for our_name, our_raw_value in our_characteristics.items():
             legal_item = legal_lookup.get(_normalize_text(our_name))
@@ -219,7 +224,7 @@ def compare_characteristics(contract_path: str, REGISTRY_DIR: Path) -> dict[str,
                 field_errors[our_name] = "Характеристика отсутствует в КТРУ на сайте"
                 continue
 
-            _, legal_values = legal_item
+            _, legal_values, _ = legal_item
             our_values = _split_contract_value(our_raw_value)
             invalid_values = [value for value in our_values if not _is_value_allowed(value, legal_values)]
 
@@ -231,6 +236,10 @@ def compare_characteristics(contract_path: str, REGISTRY_DIR: Path) -> dict[str,
                     f"Недопустимое значение: {', '.join(invalid_values)}. "
                     f"Допустимые значения по КТРУ: {legal_preview}"
                 )
+
+        for normalized_name, (legal_name, _, required) in legal_lookup.items():
+            if required and normalized_name not in present_names:
+                field_errors[legal_name] = "Отсутствует обязательная характеристика КТРУ"
 
         result[code] = field_errors if field_errors else "всё ок"
 
