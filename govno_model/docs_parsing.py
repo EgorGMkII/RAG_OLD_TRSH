@@ -23,6 +23,9 @@ def _parse_contract_characteristics(contract_path: str) -> str:
 
     table_characteristics, ktry_codes = parser_contract.extract_tables_characteristics(keywords=["№", "КТРУ", "Наименование характеристики", "Значение характеристики"])
 
+    ktry_codes = {code for code in ktry_codes if len(code.split("-"))>1}
+    table_characteristics = {ktry_code: table_characteristics[ktry_code] for ktry_code in ktry_codes}
+    
     return table_ktry_names, table_characteristics, ktry_codes
 
 def _parse_contract_points(contract_path: str, window: int = 100) -> str:
