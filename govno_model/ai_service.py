@@ -156,13 +156,13 @@ class AIService:
                     for code, payload in characteristics_compare_result.items():
                         if isinstance(payload, str):
                             if payload.strip().lower() == "всё ок":
-                                rendered_blocks.append(f"<ok>{code}: всё ок</ok>")
+                                rendered_blocks.append(f"{code}: <ok>всё ок</ok>")
                             else:
-                                rendered_blocks.append(f"<error>{code}: {payload}</error>")
+                                rendered_blocks.append(f"{code}: <error>{payload}</error>")
                         elif isinstance(payload, dict):
-                            block_lines = [f"<error>{code}:</error>"]
+                            block_lines = [f"{code}:"]
                             for field_name, message in payload.items():
-                                block_lines.append(f"<error>- {field_name}: {message}</error>")
+                                block_lines.append(f"- {field_name}: <error>{message}</error>")
                             rendered_blocks.append("\n".join(block_lines))
                         else:
                             rendered_blocks.append(str(payload))
