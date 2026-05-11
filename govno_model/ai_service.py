@@ -156,7 +156,7 @@ class AIService:
                     for code, payload in characteristics_compare_result.items():
                         if isinstance(payload, str):
                             if payload.strip().lower() == "всё ок":
-                                rendered_blocks.append(f"{code}: <ok>всё ок</ok>")
+                                rendered_blocks.append(f"{code}: <ok>Характеристики удовлетворяют критериям с сайта</ok>")
                             else:
                                 rendered_blocks.append(f"{code}: <error>{payload}</error>")
                         elif isinstance(payload, dict):
