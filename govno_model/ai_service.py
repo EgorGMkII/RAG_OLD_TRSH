@@ -92,6 +92,10 @@ class AIService:
             plan_points_str = "В плане-графике отсутствуют ОКПД, КТРУ или количество"
 
         plan_points_rag = filter_plan_points(plan_points, rag_keywords)
+        procurement_method = filter_plan_points(
+            plan_points,
+            ["Способ выбора поставщика", "Способ выбора поставщика/исполнителя"],
+        )
 
         # -----------------------------------------------------------------------
         #            ПУНКТЫ КОНТРАКТА, ООЗ, ЗАПИСКИ, ОНМЦК
@@ -145,7 +149,11 @@ class AIService:
         #               ПРОВЕРКА ХАРАКТЕРИСТИК НА САЙТЕ
         # -----------------------------------------------------------------------
         try:
-            characteristics_compare_result = compare_characteristics(ooz_path, REGISTRY_DIR)
+            characteristics_compare_result = compare_characteristics(
+                ooz_path,
+                procurement_method,
+                REGISTRY_DIR,
+            )
             if isinstance(characteristics_compare_result, dict):
                 if "error" in characteristics_compare_result:
                     characteristics_compare_result = (
@@ -160,9 +168,37 @@ class AIService:
                             else:
                                 rendered_blocks.append(f"{code}: <error>{payload}</error>")
                         elif isinstance(payload, dict):
-                            block_lines = [f"{code}:"]
-                            for field_name, message in payload.items():
-                                block_lines.append(f"- {field_name}: <error>{message}</error>")
+                            if "field_errors" in payload:
+                                block_lines = [f"{code}:"]
+                                reason = payload.get("reason")
+                                selected_okpd2 = payload.get("selected_okpd2")
+                                procurement_method_label = payload.get("procurement_method")
+                                can_add = payload.get("can_add_extra_characteristics")
+                                field_errors = payload.get("field_errors") or {}
+
+                                if procurement_method_label:
+                                    block_lines.append(f"- Способ закупки: {procurement_method_label}")
+                                if selected_okpd2:
+                                    block_lines.append(f"- Выбранный ОКПД2: {selected_okpd2}")
+                                if reason:
+                                    block_lines.append(f"- Основание: {reason}")
+
+                                if can_add is True:
+                                    block_lines.append("- Дополнительные характеристики: <ok>разрешены</ok>")
+                                elif can_add is False:
+                                    block_lines.append("- Дополнительные характеристики: <error>запрещены</error>")
+                                else:
+                                    block_lines.append("- Дополнительные характеристики: <warn>не удалось определить однозначно, применена базовая строгая проверка</warn>")
+
+                                if field_errors:
+                                    for field_name, message in field_errors.items():
+                                        block_lines.append(f"- {field_name}: <error>{message}</error>")
+                                else:
+                                    block_lines.append("- <ok>Ошибки не обнаружены</ok>")
+                            else:
+                                block_lines = [f"{code}:"]
+                                for field_name, message in payload.items():
+                                    block_lines.append(f"- {field_name}: <error>{message}</error>")
                             rendered_blocks.append("\n".join(block_lines))
                         else:
                             rendered_blocks.append(str(payload))
@@ -172,7 +208,7 @@ class AIService:
                 characteristics_compare_result = str(characteristics_compare_result)
         except Exception as e:
             characteristics_compare_result = (
-                f"<error>Не удалось сравнить характеристики контракта с КТРУ на сайте. Ошибка: {e}</error>"
+                f"<error>Не удалось сравнить характеристики ООЗ с КТРУ на сайте. Ошибка: {e}</error>"
             )
 
         # -----------------------------------------------------------------------

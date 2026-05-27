@@ -100,10 +100,21 @@ class ProcurementReferenceRegistry:
     }
 
     def __init__(self, base_dir: Path, sqlite_file: str = "pp1875.sqlite") -> None:
-        self.base_dir = Path(base_dir)
+        self.base_dir = self._resolve_base_dir(Path(base_dir))
         self.sqlite_path = self.base_dir / sqlite_file
         self.index_json_path = self.base_dir / "okpd_index.json"
         self._ktru_provider: Any | None = None
+
+    @staticmethod
+    def _resolve_base_dir(base_dir: Path) -> Path:
+        if base_dir.exists() or base_dir.is_absolute():
+            return base_dir
+
+        project_root_candidate = Path(__file__).resolve().parent.parent / base_dir
+        if project_root_candidate.exists():
+            return project_root_candidate
+
+        return base_dir
 
     @staticmethod
     def normalize_text(value: Optional[str]) -> str:
@@ -144,7 +155,11 @@ class ProcurementReferenceRegistry:
     @staticmethod
     def build_okpd_candidates(code: str) -> list[str]:
         parts = code.split(".")
-        return [".".join(parts[:i]) for i in range(len(parts), 1, -1)]
+        res = []
+        for i in range(len(parts), 2, -1):
+            base = ".".join(parts[:i-1])+"."
+            res.extend([base + parts[i-1][:j+1] for j in range(len(parts[i-1]))])
+        return res
 
     @staticmethod
     def _is_allowed_appendix(row: dict[str, Any]) -> bool:
