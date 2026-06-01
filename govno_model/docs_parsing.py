@@ -30,7 +30,7 @@ def _parse_contract_characteristics(contract_path: str) -> str:
 
 def _parse_contract_points(contract_path: str, window: int = 100) -> str:
     """
-    Достаёт КТРУ и ОКПД из контракта
+    Достаёт КТРУ, ОКПД и количесвто товаров из контракта
     Я хз надо бы виксить логику
     """
     parser_contract = DocumentParser(contract_path)
@@ -39,6 +39,7 @@ def _parse_contract_points(contract_path: str, window: int = 100) -> str:
     contract_points = _clean_keyword_dict(ktru_okpd)
     # Если нет, ищём другие способы
     if not contract_points or len(contract_points) < 20:
+        print(contract_points)
         contract_plain_text = parser_contract.extract_clean_text().strip()
         contract_points = _extract_keyword_windows(
             contract_plain_text,
@@ -51,6 +52,7 @@ def _parse_contract_points(contract_path: str, window: int = 100) -> str:
         table_contract_points_amount = parser_contract.extract_tables_columns(keywords=["№", "Наименование товара", "Количество"])
 
         table_contract_points_amount_2 = parser_contract.extract_tables_columns(keywords=["Наименование продукции", "Кол-во"])
+        table_contract_points_amount_3 = parser_contract.extract_tables_columns(keywords=["Наименование,", "Количество"])
 
         if table_contract_points:
             contract_points = contract_points + "\n" + table_contract_points
@@ -58,8 +60,14 @@ def _parse_contract_points(contract_path: str, window: int = 100) -> str:
             contract_points = contract_points + "\n" + table_contract_points_amount
         if table_contract_points_amount_2:
             contract_points = contract_points + "\n" + table_contract_points_amount_2
+        if table_contract_points_amount_3:
+            contract_points = contract_points + "\n" + table_contract_points_amount_3
         if not contract_points:
             contract_points = "В контракте не найдены КТРУ и ОКПД"
+
+    else: # БРЕД
+        table_contract_points_amount_3 = parser_contract.extract_tables_columns(keywords=["Наименование,", "Количество"])
+        contract_points = contract_points + "\n" + table_contract_points_amount_3
 
     return contract_points
 
@@ -69,9 +77,13 @@ def _parse_ooz_points(ooz_path: str, window: int = 200) -> str:
     tables_ooz = parser_ooz.extract_table_cells_by_keyword(["ОКПД", "КТРУ"])
     ooz_points = _clean_keyword_dict(tables_ooz)
     if not ooz_points or len(ooz_points) < 20:
+        # print("BLYAD")
         ooz_plain_text = parser_ooz.extract_clean_text().strip()
-        ooz_amounts = parser_ooz.extract_tables_columns(keywords=["№", "наименование товара", "количество"])
         ooz_ktry_okpd_table = parser_ooz.extract_tables_columns(keywords=["№", "ОКПД", "КТРУ"])
+
+        ooz_amounts = parser_ooz.extract_tables_columns(keywords=["№", "наименование товара", "количество"])
+        if not ooz_amounts:
+            ooz_amounts = parser_ooz.extract_tables_columns(keywords=["наименование", "количество"])
 
         ooz_points = _extract_keyword_windows(
             ooz_plain_text,
@@ -85,6 +97,10 @@ def _parse_ooz_points(ooz_path: str, window: int = 200) -> str:
 
         if ooz_amounts:
             ooz_points = ooz_points + "\n" + ooz_amounts
+
+    else: # GOVNO
+        ooz_amounts = parser_ooz.extract_tables_columns(keywords=["Наименование,", "Количество"])
+        ooz_points = ooz_points + "\n" + ooz_amounts
 
     if not ooz_points:
         ooz_points = "В ООЗ не найдены КТРУ или ОКПД"

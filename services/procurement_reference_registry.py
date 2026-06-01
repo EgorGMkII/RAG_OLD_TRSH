@@ -156,9 +156,10 @@ class ProcurementReferenceRegistry:
     def build_okpd_candidates(code: str) -> list[str]:
         parts = code.split(".")
         res = []
-        for i in range(len(parts), 2, -1):
+        for i in range(len(parts), 1, -1):
             base = ".".join(parts[:i-1])+"."
             res.extend([base + parts[i-1][:j+1] for j in range(len(parts[i-1]))])
+        # print(res)
         return res
 
     @staticmethod

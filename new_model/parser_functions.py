@@ -205,7 +205,11 @@ def parse_ktry_entries(text: str):
         if not item:
             continue
         item = normalize_text(item)
-        code, name = item.split(" - ", 1)
+        try:
+            code, name = item.split(" - ", 1)
+        except Exception:
+            code = item.strip()
+            name = "У данного КТРУ не указано наименование в таблице"
         result.append({
             "ktru_code": code.strip(),
             "name": name.strip(),
@@ -399,7 +403,8 @@ class DocumentParser:
         """
         extracted_rows = []
         keyword_lower = [kw.lower() for kw in keywords]
-
+        result = {}
+        codes = []
         for table in self.doc.tables:
             rows = [get_row_cells(row) for row in table.rows if len(dedupe_merged_cells(row))>1]
             # print(rows)
@@ -414,8 +419,6 @@ class DocumentParser:
             if not selected_indexes:
                 continue
             
-            result = {}
-            codes = []
             i=0
             for row in rows[header_rows_count:]:
                 
@@ -425,16 +428,24 @@ class DocumentParser:
                     for idx in selected_indexes
                     if idx < len(normalized_row) and normalized_row[idx]
                 ]
-                assert len(selected_cells) == len(keywords), f"Не нашёл все колонки {keywords}"
-                num  = selected_cells[0]
-                code = f"№{num}. " + selected_cells[1].split()[0]
-                name = selected_cells[2]
-                val  = selected_cells[3]
+                # assert len(selected_cells) == len(keywords), f"Не нашёл все колонки {keywords}"
+                # print("Нашёл колонки:", selected_cells)
+                if len(selected_cells) == 1 or "Дополнительные характеристики" in selected_cells[1]:
+                    continue
+                if '№' in selected_cells[0]:
+                    num  = selected_cells[0]
+                    code = f"№{num}. " + selected_cells[1].split()[0]
+                    name = selected_cells[2]
+                    val  = selected_cells[3]
+                else:
+                    code = selected_cells[0].split()[-1]
+                    name = selected_cells[1]
+                    val  = selected_cells[2]
                 codes.append(code)
-                # print(selected_cells)
+                
                 if any(selected_cells):
                     result.setdefault(code, {}).update({name: val})
-
+        # print(codes)
         return result, set(codes)
     
     def extract_tables_columns(self, keywords: List[str]) -> str:
@@ -576,7 +587,7 @@ def parce_contracters_onmck(ONMCK_path: str) -> Dict[str, List[str]]:
         supplier_price_indexes = [
             idx
             for idx, cell in enumerate(header)
-            if "поставщик" in cell.lower() and "цена за" in cell.lower()
+            if ("поставщик" in cell.lower() or "исполнитель " in cell.lower()) and "цена за" in cell.lower()
         ]
         print(header)
         print(supplier_price_indexes)
@@ -665,7 +676,7 @@ def parse_contracters_onmck_by_row_number(ONMCK_path: str) -> Dict[str, List[str
         supplier_price_indexes = [
             idx
             for idx, cell in enumerate(header)
-            if "поставщик" in cell.lower() and "цена за ед" in cell.lower()
+            if ("поставщик" in cell.lower() or "исполнитель " in cell.lower()) and "цена за ед" in cell.lower()
         ]
         # print(supplier_price_indexes)
         if not supplier_price_indexes:

@@ -65,6 +65,7 @@ def get_regestry_response_okpd_ktry(plan_points_use: List[str], REGISTRY_DIR: Pa
 def compare_characteristics(
     ooz_path: str,
     procurement_method: str | list[str] | None,
+    okpd_plan: str | None,
     REGISTRY_DIR: Path,
 ) -> dict[str, Any]:
     LOOKALIKE_LATIN_TO_CYRILLIC = str.maketrans(

@@ -96,7 +96,14 @@ class AIService:
             plan_points,
             ["Способ выбора поставщика", "Способ выбора поставщика/исполнителя"],
         )
-
+        
+        try:
+            okpd_plan = filter_plan_points(
+                plan_points,
+                ["ОКПД"],
+            )[0].split(":")[1].split("-")[0].strip()
+        except Exception:
+            okpd_plan = None
         # -----------------------------------------------------------------------
         #            ПУНКТЫ КОНТРАКТА, ООЗ, ЗАПИСКИ, ОНМЦК
         # -----------------------------------------------------------------------
@@ -152,6 +159,7 @@ class AIService:
             characteristics_compare_result = compare_characteristics(
                 ooz_path,
                 procurement_method,
+                okpd_plan,
                 REGISTRY_DIR,
             )
             if isinstance(characteristics_compare_result, dict):
