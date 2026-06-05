@@ -10,6 +10,8 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+    env_file:
+      - ./web/.env
     environment:
       DEBUG: "False"
       ALLOWED_HOSTS: "*"
@@ -26,6 +28,8 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+    env_file:
+      - ./web/.env
     environment:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0

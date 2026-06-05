@@ -214,7 +214,7 @@ class AIService:
                 characteristics_compare_result = str(characteristics_compare_result)
         except Exception as e:
             characteristics_compare_result = (
-                f"<error>Не удалось сравнить характеристики ООЗ с КТРУ на сайте. Ошибка: {e}</error>"
+                "<error>Не удалось сравнить характеристики ООЗ с КТРУ на сайте.</error>"
             )
 
         # -----------------------------------------------------------------------

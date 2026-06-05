@@ -1,3 +1,5 @@
+import os
+
 from gigachat import GigaChat
 from openai import OpenAI
 from langchain_openai import ChatOpenAI
@@ -9,22 +11,21 @@ except ModuleNotFoundError:
     LangchainGigaChat = None
 
 
-AUTH_KEY = "MDE5YTYzYWMtOTI1OS03MjgzLTgxODctNzhlYjIzMGI4MGIzOmYxNTNkNGVlLTNjOWEtNGQ3ZS1hMGNhLWE0NDJhYTZhMDJjNw=="
-GIGACHAT_TIMEOUT = 180
+AUTH_KEY = os.getenv("GIGACHAT_AUTH_KEY", "your-gigachat-auth-key")
+GIGACHAT_TIMEOUT = int(os.getenv("GIGACHAT_TIMEOUT", "180"))
+GIGACHAT_MODEL = os.getenv("GIGACHAT_MODEL", "GigaChat-2-Max")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-uNPNElzXmM4gtuLf1Gjst1MPNxPqoPke")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.proxyapi.ru/openai/v1")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.3-chat-latest")
 
 
 def get_gigachat_client() -> GigaChat:
     return GigaChat(
         verify_ssl_certs=False,
         credentials=AUTH_KEY,
-        model="GigaChat-2-Max",
+        model=GIGACHAT_MODEL,
         timeout=GIGACHAT_TIMEOUT,
     )
-
-
-OPENAI_API_KEY = "sk-uNPNElzXmM4gtuLf1Gjst1MPNxPqoPke"
-OPENAI_BASE_URL = "https://api.proxyapi.ru/openai/v1"
-OPENAI_MODEL = "gpt-5.3-chat-latest"
 
 
 def get_chatGPT_client() -> OpenAI:
@@ -52,7 +53,7 @@ def get_langchain_gigachat_model():
 
     return LangchainGigaChat(
         credentials=AUTH_KEY,
-        model="GigaChat-2-Max",
+        model=GIGACHAT_MODEL,
         verify_ssl_certs=False,
         timeout=GIGACHAT_TIMEOUT,
     )

@@ -31,8 +31,8 @@ PRAVO_BASE_URL = "http://publication.pravo.gov.ru"
 # ============================================================
 # API — GIGACHAT
 # ============================================================
-AUTH_KEY = "MDE5YTg4NmItNzkyZS03MjQzLTgxMTAtYTdmOGQ2ZDRhYjdiOmM4ZDQ2YTBkLWZhMjEtNDdkYi04Y2M5LThkNTcyYmY0NWJjOQ=="
-GIGACHAT_MODEL = "GigaChat-2"
+AUTH_KEY = os.getenv("GIGACHAT_AUTH_KEY", "your-gigachat-auth-key")
+GIGACHAT_MODEL = os.getenv("GIGACHAT_MODEL", "GigaChat-2")
 
 # ============================================================
 # МОДЕЛЬ ЭМБЕДДИНГОВ
