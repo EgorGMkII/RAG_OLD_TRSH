@@ -1,8 +1,8 @@
-from typing import List
+﻿from typing import List
 
 from langchain_core.output_parsers import StrOutputParser
 
-from new_model.llm_models import get_langchain_chat_model
+from shared_modules.llm_models import get_langchain_chat_model
 
 from .prompts import prompt_default
 
@@ -19,3 +19,4 @@ def process_default_points(plan_points: List[str], contract_full_text: str) -> s
         "plan_points": plan_points_text,
         "contract_full_text": contract_full_text,
     }).strip()
+

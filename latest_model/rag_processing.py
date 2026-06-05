@@ -1,10 +1,10 @@
-from operator import itemgetter
+﻿from operator import itemgetter
 from typing import Iterable, List
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda
 
-from new_model.llm_models import get_langchain_chat_model
+from shared_modules.llm_models import get_langchain_chat_model
 
 from .prompts import prompt_rag
 
@@ -39,3 +39,4 @@ def process_rag_points(retriever, plan_points: List[str]) -> str:
         answers.append(answer.strip())
 
     return "\n\n".join(answers)
+

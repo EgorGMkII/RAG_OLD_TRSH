@@ -1,4 +1,4 @@
-import os
+﻿import os
 import base64
 import tempfile
 import shutil
@@ -7,32 +7,32 @@ import re
 from celery import shared_task
 from docx import Document
 from docx.shared import RGBColor
-from govno_model.ai_service import get_ai_service
+from latest_model.ai_service import get_ai_service
 
 ai_service = get_ai_service()
 
 REQUIRED_DOCUMENTS = (
-    ("plan", "Заявка в план-график"),
-    ("contract", "Проект контракта"),
-    ("ooz", "ООЗ"),
-    ("zapiska", "Пояснительная записка"),
-    ("onmck", "ОНМЦК"),
-    ("obrasheniye", "Обращение о проведении закупки"),
+    ("plan", "Р—Р°СЏРІРєР° РІ РїР»Р°РЅ-РіСЂР°С„РёРє"),
+    ("contract", "РџСЂРѕРµРєС‚ РєРѕРЅС‚СЂР°РєС‚Р°"),
+    ("ooz", "РћРћР—"),
+    ("zapiska", "РџРѕСЏСЃРЅРёС‚РµР»СЊРЅР°СЏ Р·Р°РїРёСЃРєР°"),
+    ("onmck", "РћРќРњР¦Рљ"),
+    ("obrasheniye", "РћР±СЂР°С‰РµРЅРёРµ Рѕ РїСЂРѕРІРµРґРµРЅРёРё Р·Р°РєСѓРїРєРё"),
 )
 
 
 def build_result_docx_bytes(ai_response: str) -> bytes:
     """
-    Собирает docx-файл из текстового ответа модели.
+    РЎРѕР±РёСЂР°РµС‚ docx-С„Р°Р№Р» РёР· С‚РµРєСЃС‚РѕРІРѕРіРѕ РѕС‚РІРµС‚Р° РјРѕРґРµР»Рё.
 
-    Поддерживает базовое форматирование:
-    `<b>...</b>` -> жирный, `<u>...</u>` и `<ins>...</ins>` -> подчёркивание,
-    `<ok>...</ok>` -> зелёный текст, `<warn>...</warn>` -> оранжевый текст,
-    `<error>...</error>` -> красный текст.
-    Абзацы создаются по пустым строкам.
+    РџРѕРґРґРµСЂР¶РёРІР°РµС‚ Р±Р°Р·РѕРІРѕРµ С„РѕСЂРјР°С‚РёСЂРѕРІР°РЅРёРµ:
+    `<b>...</b>` -> Р¶РёСЂРЅС‹Р№, `<u>...</u>` Рё `<ins>...</ins>` -> РїРѕРґС‡С‘СЂРєРёРІР°РЅРёРµ,
+    `<ok>...</ok>` -> Р·РµР»С‘РЅС‹Р№ С‚РµРєСЃС‚, `<warn>...</warn>` -> РѕСЂР°РЅР¶РµРІС‹Р№ С‚РµРєСЃС‚,
+    `<error>...</error>` -> РєСЂР°СЃРЅС‹Р№ С‚РµРєСЃС‚.
+    РђР±Р·Р°С†С‹ СЃРѕР·РґР°СЋС‚СЃСЏ РїРѕ РїСѓСЃС‚С‹Рј СЃС‚СЂРѕРєР°Рј.
     """
     document = Document()
-    document.add_heading('Результат проверки документов', level=1)
+    document.add_heading('Р РµР·СѓР»СЊС‚Р°С‚ РїСЂРѕРІРµСЂРєРё РґРѕРєСѓРјРµРЅС‚РѕРІ', level=1)
 
     clean_response = (ai_response or '').replace('\r\n', '\n')
     blocks = [block.strip() for block in clean_response.split('\n\n') if block.strip()]
@@ -169,3 +169,4 @@ def process_document_query(self, documents):
         error_msg = str(e)
         print(f"Error processing documents: {error_msg}")
         raise Exception(error_msg)
+

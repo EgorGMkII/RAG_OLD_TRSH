@@ -1,8 +1,8 @@
-from typing import List
+﻿from typing import List
 
 from langchain_core.output_parsers import StrOutputParser
 
-from new_model.llm_models import get_langchain_chat_model
+from shared_modules.llm_models import get_langchain_chat_model
 
 from .prompts import prompt_smart
 
@@ -25,3 +25,4 @@ def process_smart_points(
         "zapiska_points": zapiska_points,
         "ONMCK_points": ONMCK_points
     }).strip()
+

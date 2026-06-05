@@ -2,13 +2,11 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from new_model.parser_functions import DocumentParser, PlanParser, parse_okpd_entries, parse_ktry_entries, _clean_keyword_dict, _extract_keyword_windows
-from new_model.retriever import Retriever, BM25TextRetriever
-from new_model.retriever import Retriever
+from shared_modules.parser_functions import DocumentParser
+from shared_modules.retriever import BM25TextRetriever
 
-from govno_model.check_registry import compare_characteristics, get_regestry_response_okpd_ktry
-from govno_model.docs_parsing import (
-    _parse_contract_characteristics,
+from latest_model.check_registry import compare_characteristics, get_regestry_response_okpd_ktry
+from latest_model.docs_parsing import (
     _parse_contract_points,
     _parse_ooz_points,
     _parse_onmck_pricies,
@@ -16,8 +14,8 @@ from govno_model.docs_parsing import (
     _parse_plan_points,
     _parse_zapiska_text,
 )
-from govno_model.rag_processing import process_rag_points
-from govno_model.smart_processing import process_smart_points
+from latest_model.rag_processing import process_rag_points
+from latest_model.smart_processing import process_smart_points
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_DIR = BASE_DIR / "data" / "parsed_tables"
@@ -321,3 +319,5 @@ def get_ai_service() -> AIService:
     if _ai_service_instance is None:
         _ai_service_instance = AIService()
     return _ai_service_instance
+
+

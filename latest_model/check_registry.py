@@ -1,12 +1,12 @@
-import re
+﻿import re
 from pathlib import Path
 from typing import Any, List, Optional
 
-from new_model.parser_functions import (
+from shared_modules.parser_functions import (
     parse_ktry_entries,
     parse_okpd_entries,
 )
-from govno_model.docs_parsing import  _parse_contract_characteristics
+from latest_model.docs_parsing import  _parse_contract_characteristics
 from services.procurement_reference_registry import ProcurementReferenceRegistry
 
 KTRU_CODE_RE = re.compile(r"\d{2}(?:\.\d{1,3}){1,4}-\d{8}")
@@ -17,19 +17,19 @@ def get_regestry_response_okpd_ktry(plan_points_use: List[str], REGISTRY_DIR: Pa
     try:
         registry = ProcurementReferenceRegistry(REGISTRY_DIR)
     except Exception as e:
-        print(f"Ошибка при чтении registry: {e}")
+        print(f"РћС€РёР±РєР° РїСЂРё С‡С‚РµРЅРёРё registry: {e}")
         registry = None
 
     try:
         parsed_okpd = parse_okpd_entries(plan_points_use[0])
     except Exception as e:
-        print(f"Ошибка при парсинге ОКПД plan_points_use[0]: {e}")
+        print(f"РћС€РёР±РєР° РїСЂРё РїР°СЂСЃРёРЅРіРµ РћРљРџР” plan_points_use[0]: {e}")
         parsed_okpd = []
 
     try:
         parsed_ktry = parse_ktry_entries(plan_points_use[1])
     except Exception as e:
-        print(f"Ошибка при парсинге КТРУ plan_points_use[1]: {e}")
+        print(f"РћС€РёР±РєР° РїСЂРё РїР°СЂСЃРёРЅРіРµ РљРўР РЈ plan_points_use[1]: {e}")
         parsed_ktry = []
 
     res_ktry = []
@@ -42,10 +42,10 @@ def get_regestry_response_okpd_ktry(plan_points_use: List[str], REGISTRY_DIR: Pa
                 res_ktry.append(res.message)
             except Exception:
                 res_ktry.append(
-                    f"Возникли проблемы с доступом к сайту при проверке КТРУ {entry['ktru_code']}."
+                    f"Р’РѕР·РЅРёРєР»Рё РїСЂРѕР±Р»РµРјС‹ СЃ РґРѕСЃС‚СѓРїРѕРј Рє СЃР°Р№С‚Сѓ РїСЂРё РїСЂРѕРІРµСЂРєРµ РљРўР РЈ {entry['ktru_code']}."
                 )
     else:
-        res_ktry = ["Не удалось распарсить КТРУ в Плане-графике"]
+        res_ktry = ["РќРµ СѓРґР°Р»РѕСЃСЊ СЂР°СЃРїР°СЂСЃРёС‚СЊ РљРўР РЈ РІ РџР»Р°РЅРµ-РіСЂР°С„РёРєРµ"]
 
     if parsed_okpd and registry:
         for entry in parsed_okpd:
@@ -54,10 +54,10 @@ def get_regestry_response_okpd_ktry(plan_points_use: List[str], REGISTRY_DIR: Pa
                 res_okpd.append(res.message)
             except Exception:
                 res_okpd.append(
-                    f"Возникли проблемы с доступом к сайту при проверке ОКПД2 {entry['okpd2']}."
+                    f"Р’РѕР·РЅРёРєР»Рё РїСЂРѕР±Р»РµРјС‹ СЃ РґРѕСЃС‚СѓРїРѕРј Рє СЃР°Р№С‚Сѓ РїСЂРё РїСЂРѕРІРµСЂРєРµ РћРљРџР”2 {entry['okpd2']}."
                 )
     else:
-        res_okpd = ["Не удалось распарсить ОКПД в Плане-графике или инициализировать registry"]
+        res_okpd = ["РќРµ СѓРґР°Р»РѕСЃСЊ СЂР°СЃРїР°СЂСЃРёС‚СЊ РћРљРџР” РІ РџР»Р°РЅРµ-РіСЂР°С„РёРєРµ РёР»Рё РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°С‚СЊ registry"]
 
     return res_ktry, res_okpd
 
@@ -70,26 +70,26 @@ def compare_characteristics(
 ) -> dict[str, Any]:
     LOOKALIKE_LATIN_TO_CYRILLIC = str.maketrans(
         {
-            "A": "А",
-            "a": "а",
-            "B": "В",
-            "C": "С",
-            "c": "с",
-            "E": "Е",
-            "e": "е",
-            "H": "Н",
-            "K": "К",
-            "k": "к",
-            "M": "М",
-            "O": "О",
-            "o": "о",
-            "P": "Р",
-            "p": "р",
-            "T": "Т",
-            "X": "Х",
-            "x": "х",
-            "Y": "У",
-            "y": "у",
+            "A": "Рђ",
+            "a": "Р°",
+            "B": "Р’",
+            "C": "РЎ",
+            "c": "СЃ",
+            "E": "Р•",
+            "e": "Рµ",
+            "H": "Рќ",
+            "K": "Рљ",
+            "k": "Рє",
+            "M": "Рњ",
+            "O": "Рћ",
+            "o": "Рѕ",
+            "P": "Р ",
+            "p": "СЂ",
+            "T": "Рў",
+            "X": "РҐ",
+            "x": "С…",
+            "Y": "РЈ",
+            "y": "Сѓ",
         }
     )
 
@@ -130,7 +130,7 @@ def compare_characteristics(
             return False
 
         normalized_range = _normalize_text(legal_value).replace(",", ".")
-        normalized_range = normalized_range.replace("≤", "<=").replace("≥", ">=")
+        normalized_range = normalized_range.replace("в‰¤", "<=").replace("в‰Ґ", ">=")
         matches = re.findall(r"(<=|>=|<|>)\s*(-?\d+(?:\.\d+)?)", normalized_range)
         if not matches:
             return False
@@ -201,14 +201,14 @@ def compare_characteristics(
         label = _clean_text(_normalize_procurement_method_label(value))
         normalized = _normalize_text(label)
 
-        if "часть 12 статьи 93" in normalized or "ч. 12 ст. 93" in normalized:
+        if "С‡Р°СЃС‚СЊ 12 СЃС‚Р°С‚СЊРё 93" in normalized or "С‡. 12 СЃС‚. 93" in normalized:
             return "part_12_article_93", label
-        if "единственный поставщик" in normalized:
+        if "РµРґРёРЅСЃС‚РІРµРЅРЅС‹Р№ РїРѕСЃС‚Р°РІС‰РёРє" in normalized:
             return "single_supplier", label
         if (
-            "электронный аукцион" in normalized
-            or "запрос котиров" in normalized
-            or "конкурс" in normalized
+            "СЌР»РµРєС‚СЂРѕРЅРЅС‹Р№ Р°СѓРєС†РёРѕРЅ" in normalized
+            or "Р·Р°РїСЂРѕСЃ РєРѕС‚РёСЂРѕРІ" in normalized
+            or "РєРѕРЅРєСѓСЂСЃ" in normalized
         ):
             return "competitive", label
         return "unknown", label
@@ -218,7 +218,7 @@ def compare_characteristics(
 
         for raw_value in (
             common_info.get("okpd2_code"),
-            common_info.get("section_pairs", {}).get("Код по ОКПД2"),
+            common_info.get("section_pairs", {}).get("РљРѕРґ РїРѕ РћРљРџР”2"),
         ):
             if not raw_value:
                 continue
@@ -268,8 +268,8 @@ def compare_characteristics(
             return {
                 "can_add_extra_characteristics": False,
                 "reason": (
-                    f"Способ закупки: {method_label or 'ч. 12 ст. 93 44-ФЗ'}. "
-                    "Для закупки по ч. 12 ст. 93 дополнительные характеристики не допускаются."
+                    f"РЎРїРѕСЃРѕР± Р·Р°РєСѓРїРєРё: {method_label or 'С‡. 12 СЃС‚. 93 44-Р¤Р—'}. "
+                    "Р”Р»СЏ Р·Р°РєСѓРїРєРё РїРѕ С‡. 12 СЃС‚. 93 РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё РЅРµ РґРѕРїСѓСЃРєР°СЋС‚СЃСЏ."
                 ),
             }
 
@@ -277,8 +277,8 @@ def compare_characteristics(
             return {
                 "can_add_extra_characteristics": True,
                 "reason": (
-                    f"Способ закупки: {method_label or 'Единственный поставщик'}. "
-                    "Для закупки у единственного поставщика дополнительные характеристики допустимы."
+                    f"РЎРїРѕСЃРѕР± Р·Р°РєСѓРїРєРё: {method_label or 'Р•РґРёРЅСЃС‚РІРµРЅРЅС‹Р№ РїРѕСЃС‚Р°РІС‰РёРє'}. "
+                    "Р”Р»СЏ Р·Р°РєСѓРїРєРё Сѓ РµРґРёРЅСЃС‚РІРµРЅРЅРѕРіРѕ РїРѕСЃС‚Р°РІС‰РёРєР° РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё РґРѕРїСѓСЃС‚РёРјС‹."
                 ),
             }
 
@@ -286,8 +286,8 @@ def compare_characteristics(
             return {
                 "can_add_extra_characteristics": None,
                 "reason": (
-                    "Способ закупки не удалось определить однозначно. "
-                    "Выполнена базовая строгая проверка характеристик."
+                    "РЎРїРѕСЃРѕР± Р·Р°РєСѓРїРєРё РЅРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ РѕРґРЅРѕР·РЅР°С‡РЅРѕ. "
+                    "Р’С‹РїРѕР»РЅРµРЅР° Р±Р°Р·РѕРІР°СЏ СЃС‚СЂРѕРіР°СЏ РїСЂРѕРІРµСЂРєР° С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРє."
                 ),
             }
 
@@ -295,8 +295,8 @@ def compare_characteristics(
             return {
                 "can_add_extra_characteristics": True,
                 "reason": (
-                    "В карточке КТРУ отсутствуют характеристики. "
-                    "В этом случае дополнительные характеристики можно указывать самостоятельно."
+                    "Р’ РєР°СЂС‚РѕС‡РєРµ РљРўР РЈ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё. "
+                    "Р’ СЌС‚РѕРј СЃР»СѓС‡Р°Рµ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё РјРѕР¶РЅРѕ СѓРєР°Р·С‹РІР°С‚СЊ СЃР°РјРѕСЃС‚РѕСЏС‚РµР»СЊРЅРѕ."
                 ),
             }
 
@@ -304,8 +304,8 @@ def compare_characteristics(
             return {
                 "can_add_extra_characteristics": None,
                 "reason": (
-                    "В карточке КТРУ найдено несколько кодов ОКПД2. "
-                    "Автоматический выбор подходящего ОКПД2 неоднозначен, поэтому выполнена базовая строгая проверка характеристик."
+                    "Р’ РєР°СЂС‚РѕС‡РєРµ РљРўР РЈ РЅР°Р№РґРµРЅРѕ РЅРµСЃРєРѕР»СЊРєРѕ РєРѕРґРѕРІ РћРљРџР”2. "
+                    "РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРёР№ РІС‹Р±РѕСЂ РїРѕРґС…РѕРґСЏС‰РµРіРѕ РћРљРџР”2 РЅРµРѕРґРЅРѕР·РЅР°С‡РµРЅ, РїРѕСЌС‚РѕРјСѓ РІС‹РїРѕР»РЅРµРЅР° Р±Р°Р·РѕРІР°СЏ СЃС‚СЂРѕРіР°СЏ РїСЂРѕРІРµСЂРєР° С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРє."
                 ),
             }
 
@@ -313,8 +313,8 @@ def compare_characteristics(
             return {
                 "can_add_extra_characteristics": None,
                 "reason": (
-                    "Не удалось определить ОКПД2 для позиции КТРУ. "
-                    "Выполнена базовая строгая проверка характеристик."
+                    "РќРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ РћРљРџР”2 РґР»СЏ РїРѕР·РёС†РёРё РљРўР РЈ. "
+                    "Р’С‹РїРѕР»РЅРµРЅР° Р±Р°Р·РѕРІР°СЏ СЃС‚СЂРѕРіР°СЏ РїСЂРѕРІРµСЂРєР° С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРє."
                 ),
             }
 
@@ -322,8 +322,8 @@ def compare_characteristics(
             return {
                 "can_add_extra_characteristics": True,
                 "reason": (
-                    "ОКПД2 не найден в приложениях 1 и 2 ПП №1875. "
-                    "Дополнительные характеристики допустимы."
+                    "РћРљРџР”2 РЅРµ РЅР°Р№РґРµРЅ РІ РїСЂРёР»РѕР¶РµРЅРёСЏС… 1 Рё 2 РџРџ в„–1875. "
+                    "Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё РґРѕРїСѓСЃС‚РёРјС‹."
                 ),
             }
 
@@ -331,32 +331,32 @@ def compare_characteristics(
             return {
                 "can_add_extra_characteristics": False,
                 "reason": (
-                    "КТРУ содержит характеристики, а связанный ОКПД2 попадает в специальную позицию ПП №1875. "
-                    "Дополнительные характеристики не допускаются."
+                    "РљРўР РЈ СЃРѕРґРµСЂР¶РёС‚ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё, Р° СЃРІСЏР·Р°РЅРЅС‹Р№ РћРљРџР”2 РїРѕРїР°РґР°РµС‚ РІ СЃРїРµС†РёР°Р»СЊРЅСѓСЋ РїРѕР·РёС†РёСЋ РџРџ в„–1875. "
+                    "Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё РЅРµ РґРѕРїСѓСЃРєР°СЋС‚СЃСЏ."
                 ),
             }
 
         return {
             "can_add_extra_characteristics": True,
             "reason": (
-                "Связанный ОКПД2 не попадает в специальные позиции ПП №1875. "
-                "Дополнительные характеристики допустимы."
+                "РЎРІСЏР·Р°РЅРЅС‹Р№ РћРљРџР”2 РЅРµ РїРѕРїР°РґР°РµС‚ РІ СЃРїРµС†РёР°Р»СЊРЅС‹Рµ РїРѕР·РёС†РёРё РџРџ в„–1875. "
+                "Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё РґРѕРїСѓСЃС‚РёРјС‹."
             ),
         }
 
     try:
         registry = ProcurementReferenceRegistry(REGISTRY_DIR)
     except Exception as e:
-        print(f"Ошибка при чтении registry: {e}")
+        print(f"РћС€РёР±РєР° РїСЂРё С‡С‚РµРЅРёРё registry: {e}")
         return {
-            "error": f"Не удалось инициализировать registry. Ошибка: {e}"
+            "error": f"РќРµ СѓРґР°Р»РѕСЃСЊ РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°С‚СЊ registry. РћС€РёР±РєР°: {e}"
         }
 
     try:
         _, table_characteristics, ktry_codes = _parse_contract_characteristics(ooz_path)
     except Exception as e:
         return {
-            "error": f"Не удалось распарсить характеристики из ООЗ. Ошибка: {e}"
+            "error": f"РќРµ СѓРґР°Р»РѕСЃСЊ СЂР°СЃРїР°СЂСЃРёС‚СЊ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё РёР· РћРћР—. РћС€РёР±РєР°: {e}"
         }
 
     result: dict[str, Any] = {}
@@ -365,7 +365,7 @@ def compare_characteristics(
     for code in ktry_codes:
         clean_code = _extract_site_ktru_code(code)
         if not clean_code:
-            result[code] = "Не удалось выделить код КТРУ для проверки на сайте"
+            result[code] = "РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РґРµР»РёС‚СЊ РєРѕРґ РљРўР РЈ РґР»СЏ РїСЂРѕРІРµСЂРєРё РЅР° СЃР°Р№С‚Рµ"
             continue
 
         common_info: dict[str, Any] | None = None
@@ -377,7 +377,7 @@ def compare_characteristics(
         try:
             legal_characteristics = registry.get_ktru_characteristics_detailed(clean_code)
         except Exception as e:
-            result[code] = f"Не удалось получить характеристики КТРУ с сайта. Ошибка: {e}"
+            result[code] = f"РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё РљРўР РЈ СЃ СЃР°Р№С‚Р°. РћС€РёР±РєР°: {e}"
             continue
 
         try:
@@ -394,7 +394,7 @@ def compare_characteristics(
 
         our_characteristics = table_characteristics.get(code) or {}
         if not our_characteristics:
-            result[code] = "В ООЗ не найдены характеристики для этого КТРУ"
+            result[code] = "Р’ РћРћР— РЅРµ РЅР°Р№РґРµРЅС‹ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё РґР»СЏ СЌС‚РѕРіРѕ РљРўР РЈ"
             continue
 
         legal_lookup = _build_legal_lookup(legal_characteristics)
@@ -415,7 +415,7 @@ def compare_characteristics(
             legal_item = legal_lookup.get(_normalize_text(our_name))
             if legal_item is None:
                 if strict_extra_check:
-                    field_errors[our_name] = "Характеристика отсутствует в КТРУ на сайте"
+                    field_errors[our_name] = "РҐР°СЂР°РєС‚РµСЂРёСЃС‚РёРєР° РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚ РІ РљРўР РЈ РЅР° СЃР°Р№С‚Рµ"
                 continue
 
             _, legal_values, _ = legal_item
@@ -427,13 +427,13 @@ def compare_characteristics(
                 if len(legal_values) > 20:
                     legal_preview += ", ..."
                 field_errors[our_name] = (
-                    f"Недопустимое значение: {', '.join(invalid_values)}. "
-                    f"Допустимые значения по КТРУ: {legal_preview}"
+                    f"РќРµРґРѕРїСѓСЃС‚РёРјРѕРµ Р·РЅР°С‡РµРЅРёРµ: {', '.join(invalid_values)}. "
+                    f"Р”РѕРїСѓСЃС‚РёРјС‹Рµ Р·РЅР°С‡РµРЅРёСЏ РїРѕ РљРўР РЈ: {legal_preview}"
                 )
 
         for normalized_name, (legal_name, _, required) in legal_lookup.items():
             if required and normalized_name not in present_names:
-                field_errors[legal_name] = "Отсутствует обязательная характеристика КТРУ"
+                field_errors[legal_name] = "РћС‚СЃСѓС‚СЃС‚РІСѓРµС‚ РѕР±СЏР·Р°С‚РµР»СЊРЅР°СЏ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєР° РљРўР РЈ"
 
         result[code] = {
             "procurement_method": method_label or None,
@@ -449,3 +449,5 @@ def compare_characteristics(
         }
 
     return result
+
+
